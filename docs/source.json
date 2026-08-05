@@ -1,8 +1,8 @@
 {
   "title": "GPU 高性能计算",
-  "syncedAt": "2026-08-05T06:01:27.171Z",
-  "lastUpdated": "2026-08-05 14:01:27 CST",
-  "chapterCount": 16,
+  "syncedAt": "2026-08-05T08:12:21.596Z",
+  "lastUpdated": "2026-08-05 16:12:21 CST",
+  "chapterCount": 23,
   "chapters": [
     {
       "title": "计算的硬件加速思路",
@@ -65,24 +65,59 @@
       "slug": "11-tirx-and-high-performance-gemm"
     },
     {
-      "title": "TIRx 视角：scope、layout、dispatch 是可读性的核心",
-      "fileName": "chapters/12-tirx-scope-layout-dispatch.md",
-      "slug": "12-tirx-scope-layout-dispatch"
+      "title": "从顺序 GEMM 到异步 GEMM 的瓶颈",
+      "fileName": "chapters/12-gemm-gemm.md",
+      "slug": "12-gemm-gemm"
     },
     {
-      "title": "为什么这还不是高性能 GEMM",
-      "fileName": "chapters/13-why-this-is-not-yet-high-performance-gemm.md",
-      "slug": "13-why-this-is-not-yet-high-performance-gemm"
+      "title": "Step 4：TMA 接管 GMEM 到 SMEM 的搬运",
+      "fileName": "chapters/13-step-4-tma-gmem-smem.md",
+      "slug": "13-step-4-tma-gmem-smem"
+    },
+    {
+      "title": "TMA store：写回也变成异步协议",
+      "fileName": "chapters/14-tma-store.md",
+      "slug": "14-tma-store"
+    },
+    {
+      "title": "Step 5：双缓冲 SMEM stage 是 pipeline 的前提",
+      "fileName": "chapters/15-step-5-smem-stage-pipeline.md",
+      "slug": "15-step-5-smem-stage-pipeline"
+    },
+    {
+      "title": "Step 6：Persistent kernel 让 CTA 持续领取 tile",
+      "fileName": "chapters/16-step-6-persistent-kernel-cta-tile.md",
+      "slug": "16-step-6-persistent-kernel-cta-tile"
+    },
+    {
+      "title": "跨 tile 复用带来的新正确性约束",
+      "fileName": "chapters/17-tile.md",
+      "slug": "17-tile"
+    },
+    {
+      "title": "TIRx 视角：这章改的是执行路径，不是数学定义",
+      "fileName": "chapters/18-tirx.md",
+      "slug": "18-tirx"
+    },
+    {
+      "title": "为什么这章还不是最终形态",
+      "fileName": "chapters/19-chapter.md",
+      "slug": "19-chapter"
     },
     {
       "title": "给 MLSys 工程的几个启发",
-      "fileName": "chapters/14-mlsys-engineering-takeaways.md",
-      "slug": "14-mlsys-engineering-takeaways"
+      "fileName": "chapters/20-mlsys-engineering-takeaways.md",
+      "slug": "20-mlsys-engineering-takeaways"
+    },
+    {
+      "title": "参考资料",
+      "fileName": "chapters/21-chapter.md",
+      "slug": "21-chapter"
     },
     {
       "title": "参考",
-      "fileName": "chapters/15-references.md",
-      "slug": "15-references"
+      "fileName": "chapters/22-references.md",
+      "slug": "22-references"
     }
   ]
 }

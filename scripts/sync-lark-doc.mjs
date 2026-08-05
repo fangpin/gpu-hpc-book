@@ -472,7 +472,7 @@ export function buildDocsReadme({
       '- 打开左侧目录按章节阅读。',
       '- 从 Roofline、内存层次和并行策略开始，再进入 GEMM、TMA、WGMMA、TPU 通信和 TIRx。',
       '- 每个章节的 Markdown 源文件保存在 `docs/chapters/`。',
-      '- 内容更新后，运行 `npm run sync` 重新生成章节。',
+      '- 内容更新后，运行 `LARK_DOC_URL=<url> npm run sync` 或 `npm run sync -- --doc <url>` 重新生成章节。',
       '',
       '## 章节',
       '',
@@ -577,6 +577,41 @@ export function buildIndexHtml(title, repoUrl = DEFAULT_REPO_URL) {
         subMaxLevel: 3,
         auto2top: true,
         relativePath: true,
+        plugins: [
+          function sidebarCurrentChapterPlugin(hook) {
+            function normalizePath(pathname) {
+              return pathname
+                .replace(/^#/, '')
+                .replace(/[?#].*$/, '')
+                .replace(/^\\/+/, '');
+            }
+
+            function currentPagePath() {
+              var hash = window.location.hash || '';
+              var hashPath = hash.replace(/^#\\/?/, '').split('?')[0];
+              return normalizePath(hashPath || 'README.md');
+            }
+
+            function updateSidebarCurrentChapter() {
+              var sidebar = document.querySelector('.sidebar-nav');
+              if (!sidebar) {
+                return;
+              }
+
+              var current = currentPagePath();
+              sidebar.querySelectorAll(':scope > ul > li').forEach(function markChapter(item) {
+                var chapterLink = item.querySelector(':scope > a');
+                var chapterPath = chapterLink
+                  ? normalizePath(chapterLink.getAttribute('href') || '')
+                  : '';
+                item.classList.toggle('is-current-chapter', Boolean(chapterPath) && chapterPath === current);
+              });
+            }
+
+            hook.mounted(updateSidebarCurrentChapter);
+            hook.doneEach(updateSidebarCurrentChapter);
+          }
+        ],
         search: {
           noData: '没有结果',
           paths: 'auto',
@@ -594,7 +629,7 @@ ${PRISM_LANGUAGES.map((language) => `    <script src="//cdn.jsdelivr.net/npm/pri
 `;
 }
 
-function buildSiteCss() {
+export function buildSiteCss() {
   return `:root {
   --theme-color: #2563eb;
 }
@@ -621,6 +656,14 @@ body {
 
 .sidebar {
   width: 320px;
+}
+
+.sidebar-nav > ul > li > ul {
+  display: none;
+}
+
+.sidebar-nav > ul > li.is-current-chapter > ul {
+  display: block;
 }
 
 .content {
@@ -668,7 +711,7 @@ export function buildRootReadmes({
     '- GitHub Pages content lives in `docs/`.',
     '- Chapter Markdown files live in `docs/chapters/`.',
     '- Read the book locally with `npm run serve`, then open <http://127.0.0.1:4193/>.',
-    '- Regenerate the generated files with `LARK_DOC_URL=<url> npm run sync` after private content changes.',
+    '- Regenerate the generated files with `LARK_DOC_URL=<url> npm run sync` or `npm run sync -- --doc <url>` after private content changes.',
     '',
     '## Site',
     '',
@@ -704,7 +747,7 @@ export function buildRootReadmes({
     '- GitHub Pages 内容位于 `docs/`。',
     '- 章节 Markdown 文件位于 `docs/chapters/`。',
     '- 运行 `npm run serve` 后打开 <http://127.0.0.1:4193/>。',
-    '- 私有内容更新后运行 `LARK_DOC_URL=<url> npm run sync` 重新生成章节。',
+    '- 私有内容更新后运行 `LARK_DOC_URL=<url> npm run sync` 或 `npm run sync -- --doc <url>` 重新生成章节。',
     '',
     '## 站点',
     '',
@@ -814,7 +857,7 @@ async function syncDocs({
   return { title, revisionId, chapters };
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const options = {};
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -828,6 +871,8 @@ function parseArgs(argv) {
       options.fixturePath = argv[++index];
     } else if (arg === '--no-images') {
       options.downloadImages = false;
+    } else if (!arg.startsWith('-') && !options.docUrl) {
+      options.docUrl = arg;
     } else {
       throw new Error(`Unknown argument: ${arg}`);
     }

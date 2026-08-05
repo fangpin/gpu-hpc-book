@@ -286,24 +286,100 @@ def hgemm_v2(M, N, K):
 K-loop 解决的是 contraction 维度，M/N 方向仍然只覆盖一个 `128 x 128` 输出 tile。第三步把 grid 扩展为 `[M // BLK_M, N // BLK_N]`，让每个 CTA 负责一个输出 tile。这样，CTA `(bx, by)` 负责输出区域 `D[bx*BLK_M:(bx+1)*BLK_M, by*BLK_N:(by+1)*BLK_N]`。
 
 ```python
-bx, by = T.cta_id([M // BLK_M, N // BLK_N])
-m_st = T.meta_var(bx * BLK_M)
-n_st = T.meta_var(by * BLK_N)
+def hgemm_v3(M, N, K):
+    a_type = tvm.DataType("float16")
+    b_type = tvm.DataType("float16")
+    d_type = tvm.DataType("float16")
+    acc_type = tvm.DataType("float32")
 
-for i in T.serial(K_TILES):
-    Tx.cta.copy(
-        Asmem[:, :],
-        A[m_st:m_st + BLK_M, i*BLK_K:(i+1)*BLK_K]
-    )
-    Tx.cta.copy(
-        Bsmem[:, :],
-        B[n_st:n_st + BLK_N, i*BLK_K:(i+1)*BLK_K]
-    )
+    BLK_M, BLK_N, BLK_K = 128, 128, 64
+    K_TILES = K // BLK_K
+
+    A_layout = tma_shared_layout(a_type, SwizzleMode.SWIZZLE_128B_ATOM, (BLK_M, BLK_K))
+    B_layout = tma_shared_layout(b_type, SwizzleMode.SWIZZLE_128B_ATOM, (BLK_N, BLK_K))
+
+    @T.prim_func
+    def kernel(
+        A: T.Buffer((M, K), a_type),
+        B: T.Buffer((N, K), b_type),
+        D: T.Buffer((M, N), d_type),
+    ):
+        T.device_entry()
+        # 2D grid: one CTA per 128x128 output tile
+        bx, by = T.cta_id([M // BLK_M, N // BLK_N])
+        wg_id = T.warpgroup_id([1])
+        warp_id = T.warp_id_in_wg([4])
+        lane_id = T.lane_id([32])
+
+        pool = T.SMEMPool()
+        tmem_addr = pool.alloc((1,), "uint32")
+        mma_bar = pool.alloc((1,), "uint64", align=8)
+        pool.move_base_to(1024)
+        Asmem = pool.alloc((BLK_M, BLK_K), a_type, layout=A_layout)
+        Bsmem = pool.alloc((BLK_N, BLK_K), b_type, layout=B_layout)
+        pool.commit()
+
+        if warp_id == 0:
+            if lane_id == 0:
+                T.ptx.mbarrier.init(mma_bar.ptr_to([0]), 1)
+            T.ptx.tcgen05.alloc(T.address_of(tmem_addr), n_cols=512, cta_group=1)
+
+        T.ptx.fence.proxy_async("shared::cta")
+        T.ptx.fence.mbarrier_init()
+        T.cuda.cta_sync()
+
+        tmem = T.decl_buffer(
+        (128, 512), "float32", scope="tmem", allocated_addr=tmem_addr[0],
+        layout=TileLayout(S[(128, 512) : (1@TLane, 1@TCol)]))
+
+        phase_mma: T.int32 = 0
+
+        # Per-CTA tile offsets
+        m_st = T.meta_var(bx * BLK_M)
+        n_st = T.meta_var(by * BLK_N)
+
+        # K-loop with offset A and B slices
+        for i in T.serial(K_TILES):   # serial device loop (keeps the full-K A/B parameters correctly shaped)
+            Tx.cta.copy(Asmem[:, :], A[m_st:m_st+BLK_M, i*BLK_K:(i+1)*BLK_K])
+            Tx.cta.copy(Bsmem[:, :], B[n_st:n_st+BLK_N, i*BLK_K:(i+1)*BLK_K])
+
+            T.cuda.cta_sync()
+
+            if warp_id == 0:
+                if T.ptx.elect_sync():
+                    Tx.gemm_async(tmem[:, :BLK_N], Asmem[:, :], Bsmem[:, :],
+                                  accum=(i != 0), dispatch="tcgen05", cta_group=1)
+                    T.ptx.tcgen05.commit(mma_bar.ptr_to([0]), cta_group=1)
+
+            T.ptx.mbarrier.try_wait(mma_bar.ptr_to([0]), phase_mma)
+            phase_mma ^= 1
+
+        # Writeback to the correct output tile
+        Dreg = T.alloc_local((BLK_N,), acc_type)
+        Dreg_f16 = T.alloc_local((BLK_N,), d_type)
+        Dreg_wg = Dreg.view(128, BLK_N,
+                            layout=TileLayout(S[(128, BLK_N) : (1@tid_in_wg, 1)]))
+
+        Tx.wg.copy_async(Dreg_wg[:, :], tmem[:, :BLK_N])
+        T.ptx.tcgen05.wait.ld()
+
+        Tx.cast(Dreg_f16[:], Dreg[:])
+        m_thr = T.meta_var(m_st + warp_id * 32 + lane_id)
+        Tx.copy(D[m_thr, n_st:n_st+BLK_N], Dreg_f16[:])
+
+        T.cuda.cta_sync()
+        if warp_id == 0:
+            T.ptx.tcgen05.relinquish_alloc_permit(cta_group=1)
+            T.ptx.tcgen05.dealloc(tmem_addr[0], n_cols=512, cta_group=1)
+
+    return kernel
 ```
 
 这里的索引关系正好对应 `D = A @ B.T`：`bx` 选择 A 的 row band，也就是 D 的 row band；`by` 选择 B 的 row band，而这些 B row 在转置语义下会成为 D 的 column band。kernel 的内部 SMEM/TMEM/register 路径并没有变，变的是 CTA scope 与每个 CTA 看到的全局切片。
 
-一步到这里，kernel 已经能覆盖完整矩阵，但还没有真正利用跨 CTA 的数据复用。同一行 CTA 会反复从 GMEM 加载相同 A tile，同一列 CTA 会反复加载相同 B tile。原文把这个浪费留给后续章节处理：TMA、software pipeline、persistent scheduling、warp specialization 和 CTA cluster 都是在这个正确 baseline 上继续降低数据移动成本、提高硬件占用和 compute density。
+到此为止，kernel 已经能覆盖完整矩阵，但还没有真正利用跨 CTA 的数据复用。同一行 CTA 会反复从 GMEM 加载相同 A tile，同一列 CTA 会反复加载相同 B tile。我们把这个浪费留给后续章节处理：TMA、software pipeline、persistent scheduling、warp specialization 和 CTA cluster 都是在这个正确 baseline 上继续降低数据移动成本、提高硬件占用和 compute density。
+
+小结：
 
 | 阶段 | Scope 变化 | 复用对象 | 新增正确性契约 | 仍未解决的问题 |
 |-|-|-|-|-|
@@ -311,6 +387,12 @@ for i in T.serial(K_TILES):
 | Step 2: K-loop | 仍然是单输出 tile | 复用 SMEM tile buffer 与 TMEM accumulator | `accum` 标志与 barrier phase flip | M/N 仍然没有空间 tiling。 |
 | Step 3: 2D grid | 每个 CTA 负责一个输出 tile | 每个 CTA 内部复用同一路径 | 正确计算 `m_st`、`n_st` 与写回行列 | 相邻 CTA 的 A/B tile 复用尚未利用。 |
 
+原文来自 MLC.AI 的 [Pipelining GEMM with TMA](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_gemm_async/index.html)。如果说上一篇 `Building a Tiled GEMM` 的目标是把 `GMEM -> SMEM -> TMEM -> register -> GMEM` 的正确路径跑通，那么这一章的目标就是让这条路径开始具备高性能 kernel 的形状：数据搬运交给 TMA，SMEM 变成可复用的 pipeline stage，CTA 不再“一 tile 一生”，而是作为 persistent worker 持续领取输出 tile。
+
+这篇博客会沿着原文的三个步骤展开，但不会逐段翻译。我们关注的是工程主线：为什么线程 copy 会成为瓶颈，TMA load/store 的同步协议到底在等什么，双缓冲为什么是重叠 load 与 compute 的前提，以及 persistent scheduling 怎样把跨 tile 的局部性暴露给 L2 cache。
+
+> 核心观点：这章还没有完成最终的 warp-specialized overlap，但它把必要的结构都搭好了。TMA 解决“谁搬数据”，pipeline stage 解决“数据搬到哪里”，persistent scheduler 解决“CTA 接下来算哪块”。
+
 ---
 
-最后一次更新时间：`2026-08-05 14:01:27 CST`
+最后一次更新时间：`2026-08-05 16:12:21 CST`

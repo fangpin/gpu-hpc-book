@@ -18,6 +18,41 @@
         subMaxLevel: 3,
         auto2top: true,
         relativePath: true,
+        plugins: [
+          function sidebarCurrentChapterPlugin(hook) {
+            function normalizePath(pathname) {
+              return pathname
+                .replace(/^#/, '')
+                .replace(/[?#].*$/, '')
+                .replace(/^\/+/, '');
+            }
+
+            function currentPagePath() {
+              var hash = window.location.hash || '';
+              var hashPath = hash.replace(/^#\/?/, '').split('?')[0];
+              return normalizePath(hashPath || 'README.md');
+            }
+
+            function updateSidebarCurrentChapter() {
+              var sidebar = document.querySelector('.sidebar-nav');
+              if (!sidebar) {
+                return;
+              }
+
+              var current = currentPagePath();
+              sidebar.querySelectorAll(':scope > ul > li').forEach(function markChapter(item) {
+                var chapterLink = item.querySelector(':scope > a');
+                var chapterPath = chapterLink
+                  ? normalizePath(chapterLink.getAttribute('href') || '')
+                  : '';
+                item.classList.toggle('is-current-chapter', Boolean(chapterPath) && chapterPath === current);
+              });
+            }
+
+            hook.mounted(updateSidebarCurrentChapter);
+            hook.doneEach(updateSidebarCurrentChapter);
+          }
+        ],
         search: {
           noData: '没有结果',
           paths: 'auto',

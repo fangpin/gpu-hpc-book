@@ -15,7 +15,7 @@ GitHub：[fangpin/gpu-hpc-book](https://github.com/fangpin/gpu-hpc-book)
 - 打开左侧目录按章节阅读。
 - 从 Roofline、内存层次和并行策略开始，再进入 GEMM、TMA、WGMMA、TPU 通信和 TIRx。
 - 每个章节的 Markdown 源文件保存在 `docs/chapters/`。
-- 内容更新后，运行 `npm run sync` 重新生成章节。
+- 内容更新后，运行 `LARK_DOC_URL=<url> npm run sync` 或 `npm run sync -- --doc <url>` 重新生成章节。
 
 ## 章节
 
@@ -126,9 +126,16 @@ GitHub：[fangpin/gpu-hpc-book](https://github.com/fangpin/gpu-hpc-book)
   - [第一步：单 tile GEMM，先把完整路径跑通](chapters/11-tirx-and-high-performance-gemm.md?id=第一步：单-tile-gemm，先把完整路径跑通)
   - [第二步：加入 K-loop，真正的难点是 barrier phase](chapters/11-tirx-and-high-performance-gemm.md?id=第二步：加入-k-loop，真正的难点是-barrier-phase)
   - [第三步：空间 tiling，把单 CTA 扩展成二维 grid](chapters/11-tirx-and-high-performance-gemm.md?id=第三步：空间-tiling，把单-cta-扩展成二维-grid)
-- [TIRx 视角：scope、layout、dispatch 是可读性的核心](chapters/12-tirx-scope-layout-dispatch.md)
-- [为什么这还不是高性能 GEMM](chapters/13-why-this-is-not-yet-high-performance-gemm.md)
-- [给 MLSys 工程的几个启发](chapters/14-mlsys-engineering-takeaways.md)
-- [参考](chapters/15-references.md)
+- [从顺序 GEMM 到异步 GEMM 的瓶颈](chapters/12-gemm-gemm.md)
+- [Step 4：TMA 接管 GMEM 到 SMEM 的搬运](chapters/13-step-4-tma-gmem-smem.md)
+- [TMA store：写回也变成异步协议](chapters/14-tma-store.md)
+- [Step 5：双缓冲 SMEM stage 是 pipeline 的前提](chapters/15-step-5-smem-stage-pipeline.md)
+- [Step 6：Persistent kernel 让 CTA 持续领取 tile](chapters/16-step-6-persistent-kernel-cta-tile.md)
+- [跨 tile 复用带来的新正确性约束](chapters/17-tile.md)
+- [TIRx 视角：这章改的是执行路径，不是数学定义](chapters/18-tirx.md)
+- [为什么这章还不是最终形态](chapters/19-chapter.md)
+- [给 MLSys 工程的几个启发](chapters/20-mlsys-engineering-takeaways.md)
+- [参考资料](chapters/21-chapter.md)
+- [参考](chapters/22-references.md)
 
-最后一次更新时间：`2026-08-05 14:01:27 CST`
+最后一次更新时间：`2026-08-05 16:12:21 CST`

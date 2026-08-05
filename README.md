@@ -23,11 +23,11 @@ The goal is to make performance feel explainable. Instead of treating CUDA kerne
 - GitHub Pages content lives in `docs/`.
 - Chapter Markdown files live in `docs/chapters/`.
 - Read the book locally with `npm run serve`, then open <http://127.0.0.1:4193/>.
-- Regenerate the generated files with `LARK_DOC_URL=<url> npm run sync` after private content changes.
+- Regenerate the generated files with `LARK_DOC_URL=<url> npm run sync` or `npm run sync -- --doc <url>` after private content changes.
 
 ## Site
 
 - Generated site shell: Docsify + GitHub Pages
 - Deployment: GitHub Actions publishes the `docs/` directory
 
-Last updated: `2026-08-05 14:01:27 CST`
+Last updated: `2026-08-05 16:12:21 CST`

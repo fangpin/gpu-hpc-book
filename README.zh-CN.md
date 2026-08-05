@@ -23,11 +23,11 @@
 - GitHub Pages 内容位于 `docs/`。
 - 章节 Markdown 文件位于 `docs/chapters/`。
 - 运行 `npm run serve` 后打开 <http://127.0.0.1:4193/>。
-- 私有内容更新后运行 `LARK_DOC_URL=<url> npm run sync` 重新生成章节。
+- 私有内容更新后运行 `LARK_DOC_URL=<url> npm run sync` 或 `npm run sync -- --doc <url>` 重新生成章节。
 
 ## 站点
 
 - 站点框架：Docsify + GitHub Pages
 - 发布方式：GitHub Actions 发布 `docs/` 目录
 
-最后一次更新时间：`2026-08-05 14:01:27 CST`
+最后一次更新时间：`2026-08-05 16:12:21 CST`

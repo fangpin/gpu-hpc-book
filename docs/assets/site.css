@@ -26,6 +26,14 @@ body {
   width: 320px;
 }
 
+.sidebar-nav > ul > li > ul {
+  display: none;
+}
+
+.sidebar-nav > ul > li.is-current-chapter > ul {
+  display: block;
+}
+
 .content {
   left: 320px;
 }

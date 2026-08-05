@@ -8,15 +8,24 @@ import {
   buildRootReadmes,
   buildSourceMetadata,
   buildSidebar,
+  buildSiteCss,
   chapterSlug,
   cleanMarkdownForRendering,
   extractImages,
   extensionFromBytes,
   extensionFromResponse,
   formatLastUpdated,
+  parseArgs,
   rewriteImageUrls,
   splitIntoChapters,
 } from '../scripts/sync-lark-doc.mjs';
+
+test('parses a positional source URL forwarded by npm', () => {
+  assert.deepEqual(
+    parseArgs(['https://bytedance.larkoffice.com/wiki/CMQxwBKEXi3wJAkDthhcCHyanPd']),
+    { docUrl: 'https://bytedance.larkoffice.com/wiki/CMQxwBKEXi3wJAkDthhcCHyanPd' },
+  );
+});
 
 test('splits markdown into introduction and top-level heading chapters', () => {
   const markdown = [
@@ -448,6 +457,25 @@ test('site shell loads docsify latex support', () => {
   assert.match(html, /docsify-latex/);
   assert.match(html, /relativePath: true/);
   assert.match(html, /window\.\$docsify/);
+});
+
+test('site shell marks only the current sidebar chapter as expanded', () => {
+  const html = buildIndexHtml('GPU Notes');
+
+  assert.match(html, /function updateSidebarCurrentChapter/);
+  assert.match(html, /is-current-chapter/);
+  assert.match(html, /querySelectorAll\(':scope > ul > li'\)/);
+  assert.match(html, /hook\.doneEach\(updateSidebarCurrentChapter\)/);
+  assert.match(html, /hook\.mounted\(updateSidebarCurrentChapter\)/);
+});
+
+test('site css collapses subsection lists outside the current sidebar chapter', () => {
+  const css = buildSiteCss();
+
+  assert.match(css, /\.sidebar-nav > ul > li > ul/);
+  assert.match(css, /display: none;/);
+  assert.match(css, /\.sidebar-nav > ul > li\.is-current-chapter > ul/);
+  assert.match(css, /display: block;/);
 });
 
 test('site shell links back to the GitHub repository', () => {
