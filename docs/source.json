@@ -1,0 +1,88 @@
+{
+  "title": "GPU 高性能计算",
+  "syncedAt": "2026-08-05T06:01:27.171Z",
+  "lastUpdated": "2026-08-05 14:01:27 CST",
+  "chapterCount": 16,
+  "chapters": [
+    {
+      "title": "计算的硬件加速思路",
+      "fileName": "chapters/00-computing-hardware-acceleration-ideas.md",
+      "slug": "00-computing-hardware-acceleration-ideas"
+    },
+    {
+      "title": "并行策略",
+      "fileName": "chapters/01-parallel-strategies.md",
+      "slug": "01-parallel-strategies"
+    },
+    {
+      "title": "GPU 编程模型",
+      "fileName": "chapters/02-gpu-programming-model.md",
+      "slug": "02-gpu-programming-model"
+    },
+    {
+      "title": "Roofline Model —— 性能优化方向的理论指导",
+      "fileName": "chapters/03-roofline-model.md",
+      "slug": "03-roofline-model"
+    },
+    {
+      "title": "内存访问密集型高性能计算",
+      "fileName": "chapters/04-memory-intensive-high-performance-computing.md",
+      "slug": "04-memory-intensive-high-performance-computing"
+    },
+    {
+      "title": "高级 cuda 特性 —— 从矩阵乘法(gemm)说起",
+      "fileName": "chapters/05-advanced-cuda-features-gemm.md",
+      "slug": "05-advanced-cuda-features-gemm"
+    },
+    {
+      "title": "GPU 上动态的调度 —— 从run-length-compression说起",
+      "fileName": "chapters/06-dynamic-scheduling-run-length-compression.md",
+      "slug": "06-dynamic-scheduling-run-length-compression"
+    },
+    {
+      "title": "Cuda TMA （Tensor Memory Accelerator）",
+      "fileName": "chapters/07-cuda-tma-tensor-memory-accelerator.md",
+      "slug": "07-cuda-tma-tensor-memory-accelerator"
+    },
+    {
+      "title": "wgmma：warp-group level tensor core instructions",
+      "fileName": "chapters/08-wgmma-warp-group-level-tensor-core-instructions.md",
+      "slug": "08-wgmma-warp-group-level-tensor-core-instructions"
+    },
+    {
+      "title": "TPU 与分布式通信原语",
+      "fileName": "chapters/09-tpu-and-distributed-communication-primitives.md",
+      "slug": "09-tpu-and-distributed-communication-primitives"
+    },
+    {
+      "title": "TIRx 基础",
+      "fileName": "chapters/10-tirx-basics.md",
+      "slug": "10-tirx-basics"
+    },
+    {
+      "title": "TIRx 与高性能GEMM",
+      "fileName": "chapters/11-tirx-and-high-performance-gemm.md",
+      "slug": "11-tirx-and-high-performance-gemm"
+    },
+    {
+      "title": "TIRx 视角：scope、layout、dispatch 是可读性的核心",
+      "fileName": "chapters/12-tirx-scope-layout-dispatch.md",
+      "slug": "12-tirx-scope-layout-dispatch"
+    },
+    {
+      "title": "为什么这还不是高性能 GEMM",
+      "fileName": "chapters/13-why-this-is-not-yet-high-performance-gemm.md",
+      "slug": "13-why-this-is-not-yet-high-performance-gemm"
+    },
+    {
+      "title": "给 MLSys 工程的几个启发",
+      "fileName": "chapters/14-mlsys-engineering-takeaways.md",
+      "slug": "14-mlsys-engineering-takeaways"
+    },
+    {
+      "title": "参考",
+      "fileName": "chapters/15-references.md",
+      "slug": "15-references"
+    }
+  ]
+}

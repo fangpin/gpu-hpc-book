@@ -1,0 +1,37 @@
+:root {
+  --theme-color: #2563eb;
+}
+
+body {
+  letter-spacing: 0;
+}
+
+.markdown-section {
+  max-width: 980px;
+}
+
+.markdown-section pre,
+.markdown-section code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.markdown-section img {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  max-height: 680px;
+  object-fit: contain;
+}
+
+.sidebar {
+  width: 320px;
+}
+
+.content {
+  left: 320px;
+}
+
+@media (max-width: 768px) {
+  .content {
+    left: 0;
+  }
+}

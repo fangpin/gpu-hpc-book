@@ -1,0 +1,11 @@
+{
+  "name": "gpu-coding",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "sync": "node scripts/sync-lark-doc.mjs",
+    "serve": "node scripts/serve-docs.mjs"
+  }
+}
