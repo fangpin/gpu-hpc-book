@@ -2,7 +2,7 @@
 
 [中文](README.md)
 
-Read online: [https://fangpin.github.io/gpu-coding/](https://fangpin.github.io/gpu-coding/)
+Read online: [https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)
 
 This book is a practical tour of high-performance computing, from hardware acceleration and parallel programming to GPU/TPU performance engineering.
 

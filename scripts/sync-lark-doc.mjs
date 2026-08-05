@@ -4,7 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const DEFAULT_DOCS_DIR = 'docs';
-const DEFAULT_SITE_URL = 'https://fangpin.github.io/gpu-coding/';
+const DEFAULT_SITE_URL = 'https://fangpin.github.io/gpu-hpc-book/';
 
 const TITLE_SLUGS = new Map([
   ['高性能计算', 'high-performance-computing'],

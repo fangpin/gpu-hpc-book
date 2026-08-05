@@ -152,7 +152,7 @@ test('normalizes code fence languages for Prism without changing code contents',
     '```',
     '',
     '```YAML',
-    'name: gpu-coding',
+    'name: gpu-hpc-book',
     '```',
     '',
     '```text',
@@ -178,7 +178,7 @@ test('normalizes code fence languages for Prism without changing code contents',
     '```',
     '',
     '```yaml',
-    'name: gpu-coding',
+    'name: gpu-hpc-book',
     '```',
     '',
     '```text',
@@ -235,7 +235,7 @@ test('docs readme shows only the last updated time instead of sync details', () 
   const readme = buildDocsReadme({
     title: 'GPU Notes',
     language: 'zh',
-    siteUrl: 'https://fangpin.github.io/gpu-coding/',
+    siteUrl: 'https://fangpin.github.io/gpu-hpc-book/',
     sourceUrl: 'https://example.com/source',
     documentId: 'doc-token',
     revisionId: '123',
@@ -245,7 +245,7 @@ test('docs readme shows only the last updated time instead of sync details', () 
     ],
   });
 
-  assert.match(readme, /在线阅读：\[https:\/\/fangpin\.github\.io\/gpu-coding\/\]\(https:\/\/fangpin\.github\.io\/gpu-coding\/\)/);
+  assert.match(readme, /在线阅读：\[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)/);
   assert.match(readme, /最后一次更新时间：`2026-08-05 18:00:00 CST`/);
   assert.doesNotMatch(readme, /## 同步信息/);
   assert.doesNotMatch(readme, /飞书源文档/);
@@ -257,7 +257,7 @@ test('docs readme shows only the last updated time instead of sync details', () 
 test('docs readme is Chinese by default and links to the English version', () => {
   const readme = buildDocsReadme({
     title: 'GPU Notes',
-    siteUrl: 'https://fangpin.github.io/gpu-coding/',
+    siteUrl: 'https://fangpin.github.io/gpu-hpc-book/',
     lastUpdated: '2026-08-05 18:00:00 CST',
     chapters: [
       {
@@ -274,7 +274,7 @@ test('docs readme is Chinese by default and links to the English version', () =>
 
   assert.match(readme, /^# GPU Notes/);
   assert.match(readme, /\[English\]\(README\.en\.md\)/);
-  assert.match(readme, /在线阅读：\[https:\/\/fangpin\.github\.io\/gpu-coding\/\]\(https:\/\/fangpin\.github\.io\/gpu-coding\/\)/);
+  assert.match(readme, /在线阅读：\[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)/);
   assert.match(readme, /从硬件加速、并行编程到 GPU\/TPU 性能优化/);
   assert.match(readme, /## 章节/);
   assert.match(readme, /- \[Hardware\]\(chapters\/00-hardware\.md\)/);
@@ -287,7 +287,7 @@ test('docs English readme links back to the Chinese homepage', () => {
   const readme = buildDocsReadme({
     title: 'GPU Notes',
     language: 'en',
-    siteUrl: 'https://fangpin.github.io/gpu-coding/',
+    siteUrl: 'https://fangpin.github.io/gpu-hpc-book/',
     lastUpdated: '2026-08-05 18:00:00 CST',
     chapters: [
       {
@@ -304,7 +304,7 @@ test('docs English readme links back to the Chinese homepage', () => {
 
   assert.match(readme, /^# GPU Notes/);
   assert.match(readme, /\[中文\]\(README\.md\)/);
-  assert.match(readme, /Read online: \[https:\/\/fangpin\.github\.io\/gpu-coding\/\]\(https:\/\/fangpin\.github\.io\/gpu-coding\/\)/);
+  assert.match(readme, /Read online: \[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)/);
   assert.match(readme, /This book is a practical tour of high-performance computing/);
   assert.match(readme, /## Chapters/);
   assert.match(readme, /- \[Hardware\]\(chapters\/00-hardware\.md\)/);
@@ -367,13 +367,13 @@ test('root readmes are bilingual and link to each other', () => {
   const { english, chinese } = buildRootReadmes({
     title: 'GPU Notes',
     sourceUrl: 'https://example.com/source',
-    siteUrl: 'https://fangpin.github.io/gpu-coding/',
+    siteUrl: 'https://fangpin.github.io/gpu-hpc-book/',
     lastUpdated: '2026-08-05 18:00:00 CST',
   });
 
   assert.match(english, /^# GPU Notes/);
   assert.match(english, /\[中文\]\(README\.zh-CN\.md\)/);
-  assert.match(english, /Read online: \[https:\/\/fangpin\.github\.io\/gpu-coding\/\]\(https:\/\/fangpin\.github\.io\/gpu-coding\/\)/);
+  assert.match(english, /Read online: \[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)/);
   assert.match(english, /What You Will Learn/);
   assert.match(english, /GPU programming model/);
   assert.match(english, /Read the book locally/);
@@ -384,7 +384,7 @@ test('root readmes are bilingual and link to each other', () => {
 
   assert.match(chinese, /^# GPU Notes/);
   assert.match(chinese, /\[English\]\(README\.md\)/);
-  assert.match(chinese, /在线阅读：\[https:\/\/fangpin\.github\.io\/gpu-coding\/\]\(https:\/\/fangpin\.github\.io\/gpu-coding\/\)/);
+  assert.match(chinese, /在线阅读：\[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)/);
   assert.match(chinese, /你会读到什么/);
   assert.match(chinese, /GPU 编程模型/);
   assert.match(chinese, /本地阅读/);

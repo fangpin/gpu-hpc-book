@@ -2,7 +2,7 @@
 
 [English](README.en.md)
 
-在线阅读：[https://fangpin.github.io/gpu-coding/](https://fangpin.github.io/gpu-coding/)
+在线阅读：[https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)
 
 从硬件加速、并行编程到 GPU/TPU 性能优化，系统梳理高性能计算的核心概念、分析方法与工程实践。
 

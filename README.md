@@ -2,7 +2,7 @@
 
 [中文](README.zh-CN.md)
 
-Read online: [https://fangpin.github.io/gpu-coding/](https://fangpin.github.io/gpu-coding/)
+Read online: [https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)
 
 A hands-on, book-length guide to high-performance computing on modern accelerators. The chapters move from the first principles of hardware acceleration to practical GPU programming, performance modeling, memory optimization, advanced CUDA features, TPU communication, and TIRx.
 

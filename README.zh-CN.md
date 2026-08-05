@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-在线阅读：[https://fangpin.github.io/gpu-coding/](https://fangpin.github.io/gpu-coding/)
+在线阅读：[https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)
 
 这是一本面向现代加速器的高性能计算实践指南。内容从硬件加速的基本思路讲起，逐步进入 GPU 编程模型、性能建模、内存优化、高级 CUDA 特性、TPU 通信原语以及 TIRx。
 
