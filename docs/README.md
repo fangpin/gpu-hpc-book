@@ -4,6 +4,8 @@
 
 在线阅读：[https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)
 
+GitHub：[fangpin/gpu-hpc-book](https://github.com/fangpin/gpu-hpc-book)
+
 从硬件加速、并行编程到 GPU/TPU 性能优化，系统梳理高性能计算的核心概念、分析方法与工程实践。
 
 这本书面向希望真正理解高性能计算的工程师和学习者：不仅知道 CUDA、Tensor Core、TMA、WGMMA、TPU collective 这些名词，更能把硬件能力、程序结构、数据搬运和性能模型连成一条清晰的优化路径。

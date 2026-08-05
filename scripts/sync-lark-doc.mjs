@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 const DEFAULT_DOCS_DIR = 'docs';
 const DEFAULT_SITE_URL = 'https://fangpin.github.io/gpu-hpc-book/';
+const DEFAULT_REPO_URL = 'https://github.com/fangpin/gpu-hpc-book';
 
 const TITLE_SLUGS = new Map([
   ['高性能计算', 'high-performance-computing'],
@@ -444,6 +445,7 @@ export function buildDocsReadme({
   syncedAt,
   lastUpdated,
   siteUrl = DEFAULT_SITE_URL,
+  repoUrl = DEFAULT_REPO_URL,
   chapters,
   language = 'zh',
 }) {
@@ -458,6 +460,8 @@ export function buildDocsReadme({
       '[English](README.en.md)',
       '',
       `在线阅读：[${siteUrl}](${siteUrl})`,
+      '',
+      `GitHub：[fangpin/gpu-hpc-book](${repoUrl})`,
       '',
       '从硬件加速、并行编程到 GPU/TPU 性能优化，系统梳理高性能计算的核心概念、分析方法与工程实践。',
       '',
@@ -485,6 +489,8 @@ export function buildDocsReadme({
     '[中文](README.md)',
     '',
     `Read online: [${siteUrl}](${siteUrl})`,
+    '',
+    `GitHub: [fangpin/gpu-hpc-book](${repoUrl})`,
     '',
     'This book is a practical tour of high-performance computing, from hardware acceleration and parallel programming to GPU/TPU performance engineering.',
     '',
@@ -550,7 +556,7 @@ export function buildSourceMetadata({ title, syncedAt, lastUpdated, chapters = [
   }, null, 2)}\n`;
 }
 
-export function buildIndexHtml(title) {
+export function buildIndexHtml(title, repoUrl = DEFAULT_REPO_URL) {
   return `<!doctype html>
 <html lang="zh-CN">
   <head>
@@ -566,7 +572,7 @@ export function buildIndexHtml(title) {
     <script>
       window.$docsify = {
         name: '${title}',
-        repo: '',
+        repo: '${repoUrl}',
         loadSidebar: true,
         subMaxLevel: 3,
         auto2top: true,
@@ -775,6 +781,7 @@ async function syncDocs({
     syncedAt,
     lastUpdated,
     siteUrl: DEFAULT_SITE_URL,
+    repoUrl: DEFAULT_REPO_URL,
     chapters,
   }));
   await rm(path.join(docsDir, 'README.zh-CN.md'), { force: true });
@@ -784,10 +791,11 @@ async function syncDocs({
     syncedAt,
     lastUpdated,
     siteUrl: DEFAULT_SITE_URL,
+    repoUrl: DEFAULT_REPO_URL,
     chapters,
   }));
   await writeFile(path.join(docsDir, '_sidebar.md'), buildSidebar(chapters));
-  await writeFile(path.join(docsDir, 'index.html'), buildIndexHtml(title));
+  await writeFile(path.join(docsDir, 'index.html'), buildIndexHtml(title, DEFAULT_REPO_URL));
   await writeFile(path.join(docsDir, 'assets', 'site.css'), buildSiteCss());
   await writeFile(path.join(docsDir, '.nojekyll'), '');
   await writeFile(path.join(docsDir, 'source.json'), buildSourceMetadata({

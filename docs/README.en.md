@@ -4,6 +4,8 @@
 
 Read online: [https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)
 
+GitHub: [fangpin/gpu-hpc-book](https://github.com/fangpin/gpu-hpc-book)
+
 This book is a practical tour of high-performance computing, from hardware acceleration and parallel programming to GPU/TPU performance engineering.
 
 It is written for readers who want to understand how modern accelerators really deliver speed: how work is mapped to threads and warps, how memory movement shapes performance, how GEMM becomes a playground for advanced CUDA features, and how newer ideas such as TMA, WGMMA, TPU collectives, and TIRx fit into one optimization story.
