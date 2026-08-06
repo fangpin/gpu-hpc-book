@@ -27,3 +27,5 @@ if tid == 0:
 ---
 
 最后一次更新时间：`2026-08-05 16:12:21 CST`
+
+原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/12-gemm-gemm.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/12-gemm-gemm.md)

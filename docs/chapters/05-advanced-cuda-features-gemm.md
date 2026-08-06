@@ -526,3 +526,5 @@ Tensor Core 要求数据在 Warp 的 32 个线程的寄存器中以**特定布�
 ---
 
 最后一次更新时间：`2026-08-05 16:12:21 CST`
+
+原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/05-advanced-cuda-features-gemm.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/05-advanced-cuda-features-gemm.md)

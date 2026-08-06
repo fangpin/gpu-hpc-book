@@ -146,3 +146,5 @@ It is written for readers who want to understand how modern accelerators really 
 - [参考](chapters/22-references.md)
 
 Last updated: `2026-08-05 16:12:21 CST`
+
+原文链接：[https://fangpin.github.io/gpu-hpc-book/#/README.en.md](https://fangpin.github.io/gpu-hpc-book/#/README.en.md)

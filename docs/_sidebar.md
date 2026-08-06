@@ -117,3 +117,5 @@
 - [给 MLSys 工程的几个启发](/chapters/20-mlsys-engineering-takeaways.md)
 - [参考资料](/chapters/21-chapter.md)
 - [参考](/chapters/22-references.md)
+
+<!-- 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/_sidebar.md](https://fangpin.github.io/gpu-hpc-book/#/_sidebar.md) -->

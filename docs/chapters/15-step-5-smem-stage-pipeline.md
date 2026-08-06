@@ -52,3 +52,5 @@ for k in range(K_TILES):
 ---
 
 最后一次更新时间：`2026-08-05 16:12:21 CST`
+
+原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/15-step-5-smem-stage-pipeline.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/15-step-5-smem-stage-pipeline.md)

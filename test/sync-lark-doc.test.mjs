@@ -237,6 +237,8 @@ test('builds docsify sidebar from generated chapters', () => {
     '    - [CUDA Core & SM](/chapters/01-hardware.md?id=cuda-core-sm)',
     '  - [GPU 编程模型](/chapters/01-hardware.md?id=gpu-编程模型-1)',
     '',
+    '<!-- 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/_sidebar.md](https://fangpin.github.io/gpu-hpc-book/#/_sidebar.md) -->',
+    '',
   ].join('\n'));
 });
 
@@ -293,6 +295,7 @@ test('docs readme is Chinese by default and links to the English version', () =>
   assert.match(readme, /- \[Hardware\]\(chapters\/00-hardware\.md\)/);
   assert.match(readme, /  - \[GPU 编程模型\]\(chapters\/00-hardware\.md\?id=gpu-编程模型\)/);
   assert.match(readme, /最后一次更新时间：`2026-08-05 18:00:00 CST`/);
+  assert.match(readme, /\n原文链接：\[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)\n$/);
   assert.doesNotMatch(readme, /Why Read This Book/);
 });
 
@@ -325,6 +328,7 @@ test('docs English readme links back to the Chinese homepage', () => {
   assert.match(readme, /- \[Hardware\]\(chapters\/00-hardware\.md\)/);
   assert.match(readme, /  - \[GPU 编程模型\]\(chapters\/00-hardware\.md\?id=gpu-编程模型\)/);
   assert.match(readme, /Last updated: `2026-08-05 18:00:00 CST`/);
+  assert.match(readme, /\n原文链接：\[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/#\/README\.en\.md\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/#\/README\.en\.md\)\n$/);
   assert.doesNotMatch(readme, /阅读方式/);
 });
 
@@ -357,7 +361,11 @@ test('docs readme chapter list includes chapter subsections', () => {
 });
 
 test('chapter pages include the last updated time', () => {
-  const page = buildChapterPage('# Hardware\n\nBody\n', '2026-08-05 18:00:00 CST');
+  const page = buildChapterPage(
+    '# Hardware\n\nBody\n',
+    '2026-08-05 18:00:00 CST',
+    'https://fangpin.github.io/gpu-hpc-book/#/chapters/00-hardware.md',
+  );
 
   assert.equal(page, [
     '# Hardware',
@@ -367,6 +375,8 @@ test('chapter pages include the last updated time', () => {
     '---',
     '',
     '最后一次更新时间：`2026-08-05 18:00:00 CST`',
+    '',
+    '原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/00-hardware.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/00-hardware.md)',
     '',
   ].join('\n'));
 });
@@ -394,6 +404,7 @@ test('root readmes are bilingual and link to each other', () => {
   assert.match(english, /Read the book locally/);
   assert.match(english, /npm run serve/);
   assert.match(english, /Last updated: `2026-08-05 18:00:00 CST`/);
+  assert.match(english, /\n原文链接：\[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)\n$/);
   assert.doesNotMatch(english, /Source document/);
   assert.doesNotMatch(english, /https:\/\/example\.com\/source/);
 
@@ -404,6 +415,7 @@ test('root readmes are bilingual and link to each other', () => {
   assert.match(chinese, /GPU 编程模型/);
   assert.match(chinese, /本地阅读/);
   assert.match(chinese, /最后一次更新时间：`2026-08-05 18:00:00 CST`/);
+  assert.match(chinese, /\n原文链接：\[https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\]\(https:\/\/fangpin\.github\.io\/gpu-hpc-book\/\)\n$/);
   assert.doesNotMatch(chinese, /源文档/);
   assert.doesNotMatch(chinese, /https:\/\/example\.com\/source/);
 });
@@ -476,6 +488,21 @@ test('site css collapses subsection lists outside the current sidebar chapter', 
   assert.match(css, /display: none;/);
   assert.match(css, /\.sidebar-nav > ul > li\.is-current-chapter > ul/);
   assert.match(css, /display: block;/);
+});
+
+test('site css makes docs comfortable to read on phones', () => {
+  const css = buildSiteCss();
+
+  assert.match(css, /@media \(max-width: 768px\)/);
+  assert.match(css, /\.markdown-section\s*{[\s\S]*padding: 22px 18px 40px;/);
+  assert.match(css, /\.markdown-section\s*{[\s\S]*font-size: 16px;/);
+  assert.match(css, /\.markdown-section\s*{[\s\S]*line-height: 1\.72;/);
+  assert.match(css, /\.content\s*{[\s\S]*left: 0;/);
+  assert.match(css, /\.sidebar-toggle\s*{[\s\S]*position: fixed;/);
+  assert.match(css, /\.markdown-section pre\s*{[\s\S]*overflow-x: auto;/);
+  assert.match(css, /\.markdown-section table\s*{[\s\S]*display: block;/);
+  assert.match(css, /\.markdown-section img\s*{[\s\S]*max-width: 100%;/);
+  assert.match(css, /\.app-nav\s*{[\s\S]*display: none;/);
 });
 
 test('site shell links back to the GitHub repository', () => {

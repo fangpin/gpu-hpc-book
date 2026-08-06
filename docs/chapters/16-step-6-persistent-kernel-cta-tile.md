@@ -35,3 +35,5 @@ persistent scheduling 的收益有两层。第一是摊薄初始化成本：TMEM
 ---
 
 最后一次更新时间：`2026-08-05 16:12:21 CST`
+
+原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/16-step-6-persistent-kernel-cta-tile.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/16-step-6-persistent-kernel-cta-tile.md)

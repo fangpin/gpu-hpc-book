@@ -274,6 +274,26 @@ function sidebarLinkPath(fileName) {
   return `/${fileName.replace(/^\/+/, '')}`;
 }
 
+function normalizeSiteUrl(siteUrl = DEFAULT_SITE_URL) {
+  return siteUrl.endsWith('/') ? siteUrl : `${siteUrl}/`;
+}
+
+function buildGithubPagesUrl(fileName = '', siteUrl = DEFAULT_SITE_URL) {
+  const normalizedSiteUrl = normalizeSiteUrl(siteUrl);
+  const normalizedFileName = fileName.replace(/^\/+/, '');
+
+  if (!normalizedFileName || normalizedFileName === 'README.md') {
+    return normalizedSiteUrl;
+  }
+
+  return `${normalizedSiteUrl}#/${normalizedFileName}`;
+}
+
+function buildSourceLinkFooter(url, { hidden = false } = {}) {
+  const footer = `原文链接：[${url}](${url})`;
+  return hidden ? `<!-- ${footer} -->` : footer;
+}
+
 function buildChapterList(chapters, rootRelative = false) {
   const lines = [];
 
@@ -293,6 +313,8 @@ function buildChapterList(chapters, rootRelative = false) {
 export function buildSidebar(chapters) {
   const lines = ['- [首页](/)', buildChapterList(chapters)];
 
+  lines.push('');
+  lines.push(buildSourceLinkFooter(buildGithubPagesUrl('_sidebar.md'), { hidden: true }));
   lines.push('');
   return lines.join('\n');
 }
@@ -480,6 +502,8 @@ export function buildDocsReadme({
       '',
       `最后一次更新时间：\`${displayUpdatedAt}\``,
       '',
+      buildSourceLinkFooter(buildGithubPagesUrl('README.md', siteUrl)),
+      '',
     ].join('\n');
   }
 
@@ -516,16 +540,24 @@ export function buildDocsReadme({
     '',
     `Last updated: \`${displayUpdatedAt}\``,
     '',
+    buildSourceLinkFooter(buildGithubPagesUrl('README.en.md', siteUrl)),
+    '',
   ].join('\n');
 }
 
-export function buildChapterPage(content, lastUpdated) {
+export function buildChapterPage(content, lastUpdated, sourceUrl) {
+  const footer = sourceUrl ? [
+    '',
+    buildSourceLinkFooter(sourceUrl),
+  ] : [];
+
   return [
     content.trimEnd(),
     '',
     '---',
     '',
     `最后一次更新时间：\`${lastUpdated}\``,
+    ...footer,
     '',
   ].join('\n');
 }
@@ -632,14 +664,48 @@ ${PRISM_LANGUAGES.map((language) => `    <script src="//cdn.jsdelivr.net/npm/pri
 export function buildSiteCss() {
   return `:root {
   --theme-color: #2563eb;
+  --sidebar-width: 320px;
+  --reader-max-width: 880px;
 }
 
 body {
+  color: #1f2937;
   letter-spacing: 0;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 .markdown-section {
-  max-width: 980px;
+  box-sizing: border-box;
+  font-size: 17px;
+  line-height: 1.78;
+  margin: 0 auto;
+  max-width: var(--reader-max-width);
+  padding: 34px 42px 64px;
+  overflow-wrap: anywhere;
+}
+
+.markdown-section h1 {
+  font-size: 2rem;
+  line-height: 1.25;
+  margin: 0 0 1.2rem;
+}
+
+.markdown-section h2 {
+  font-size: 1.45rem;
+  line-height: 1.35;
+  margin-top: 2.1rem;
+}
+
+.markdown-section h3 {
+  font-size: 1.16rem;
+  line-height: 1.45;
+  margin-top: 1.6rem;
+}
+
+.markdown-section p,
+.markdown-section li {
+  line-height: inherit;
 }
 
 .markdown-section pre,
@@ -647,15 +713,33 @@ body {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
+.markdown-section pre {
+  border-radius: 6px;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-section table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .markdown-section img {
   border: 1px solid #e5e7eb;
   border-radius: 6px;
+  height: auto;
   max-height: 680px;
+  max-width: 100%;
   object-fit: contain;
 }
 
 .sidebar {
-  width: 320px;
+  width: var(--sidebar-width);
 }
 
 .sidebar-nav > ul > li > ul {
@@ -667,12 +751,74 @@ body {
 }
 
 .content {
-  left: 320px;
+  left: var(--sidebar-width);
 }
 
 @media (max-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+
+  .app-nav {
+    display: none;
+  }
+
   .content {
     left: 0;
+    padding-top: 0;
+  }
+
+  .markdown-section {
+    font-size: 16px;
+    line-height: 1.72;
+    max-width: none;
+    padding: 22px 18px 40px;
+  }
+
+  .markdown-section h1 {
+    font-size: 1.62rem;
+    line-height: 1.28;
+    margin-top: 0.25rem;
+  }
+
+  .markdown-section h2 {
+    font-size: 1.28rem;
+    line-height: 1.38;
+    margin-top: 1.85rem;
+  }
+
+  .markdown-section h3 {
+    font-size: 1.08rem;
+  }
+
+  .markdown-section pre {
+    margin-left: -2px;
+    margin-right: -2px;
+    padding: 0.9rem;
+  }
+
+  .markdown-section blockquote {
+    margin-left: 0;
+    padding-left: 1rem;
+  }
+
+  .sidebar {
+    width: min(84vw, var(--sidebar-width));
+  }
+
+  .sidebar-toggle {
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    bottom: 16px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+    height: 42px;
+    left: 16px;
+    padding: 10px;
+    position: fixed;
+    top: auto;
+    width: 42px;
+    z-index: 40;
   }
 }
 `;
@@ -719,6 +865,8 @@ export function buildRootReadmes({
     '- Deployment: GitHub Actions publishes the `docs/` directory',
     ...(displayUpdatedAt ? ['', `Last updated: \`${displayUpdatedAt}\``] : []),
     '',
+    buildSourceLinkFooter(buildGithubPagesUrl('', siteUrl)),
+    '',
   ].join('\n');
 
   const chinese = [
@@ -754,6 +902,8 @@ export function buildRootReadmes({
     '- 站点框架：Docsify + GitHub Pages',
     '- 发布方式：GitHub Actions 发布 `docs/` 目录',
     ...(displayUpdatedAt ? ['', `最后一次更新时间：\`${displayUpdatedAt}\``] : []),
+    '',
+    buildSourceLinkFooter(buildGithubPagesUrl('', siteUrl)),
     '',
   ].join('\n');
 
@@ -815,7 +965,11 @@ async function syncDocs({
       content = rewriteImageUrls(content, replacements);
     }
 
-    await writeFile(path.join(docsDir, chapter.fileName), buildChapterPage(content, lastUpdated));
+    await writeFile(path.join(docsDir, chapter.fileName), buildChapterPage(
+      content,
+      lastUpdated,
+      buildGithubPagesUrl(chapter.fileName, DEFAULT_SITE_URL),
+    ));
   }
 
   await writeFile(path.join(docsDir, 'README.md'), buildDocsReadme({

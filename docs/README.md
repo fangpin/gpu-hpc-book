@@ -139,3 +139,5 @@ GitHub：[fangpin/gpu-hpc-book](https://github.com/fangpin/gpu-hpc-book)
 - [参考](chapters/22-references.md)
 
 最后一次更新时间：`2026-08-05 16:12:21 CST`
+
+原文链接：[https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)
