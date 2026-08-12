@@ -4,8 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "export": "node scripts/export-platform-posts.mjs",
     "test": "node --test",
     "sync": "node scripts/sync-lark-doc.mjs",
     "serve": "node scripts/serve-docs.mjs"
+  },
+  "dependencies": {
+    "katex": "^0.18.2"
   }
 }

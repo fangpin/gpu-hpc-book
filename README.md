@@ -30,6 +30,6 @@ The goal is to make performance feel explainable. Instead of treating CUDA kerne
 - Generated site shell: Docsify + GitHub Pages
 - Deployment: GitHub Actions publishes the `docs/` directory
 
-Last updated: `2026-08-05 16:12:21 CST`
+Last updated: `2026-08-12 20:23:36 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)

@@ -554,6 +554,6 @@ void launch_single_tma_reduce(bf16 *src, bf16 *dest) {
 
 ---
 
-最后一次更新时间：`2026-08-05 16:12:21 CST`
+最后一次更新时间：`2026-08-12 20:23:36 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/07-cuda-tma-tensor-memory-accelerator.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/07-cuda-tma-tensor-memory-accelerator.md)

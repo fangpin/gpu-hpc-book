@@ -30,6 +30,6 @@
 - 站点框架：Docsify + GitHub Pages
 - 发布方式：GitHub Actions 发布 `docs/` 目录
 
-最后一次更新时间：`2026-08-05 16:12:21 CST`
+最后一次更新时间：`2026-08-12 20:23:36 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/](https://fangpin.github.io/gpu-hpc-book/)

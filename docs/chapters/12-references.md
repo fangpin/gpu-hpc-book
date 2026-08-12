@@ -16,9 +16,12 @@
 - [Introduction to TIRx](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_intro_tirx/index.html)
 - [TIRx Layout API](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_tirx_layout_api/index.html)
 - [Building a Tiled GEMM](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_gemm_basics/index.html)
+- [Pipelining GEMM with TMA](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_gemm_async/index.html)
+- [Scaling GEMM with Warp Specialization and Clusters](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_gemm_advanced/index.html)
+- [mlc-ai/modern-gpu-programming-for-mlsys](https://github.com/mlc-ai/modern-gpu-programming-for-mlsys)
 
 ---
 
-最后一次更新时间：`2026-08-05 16:12:21 CST`
+最后一次更新时间：`2026-08-12 20:23:36 CST`
 
-原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/22-references.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/22-references.md)
+原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/12-references.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/12-references.md)
