@@ -51,6 +51,41 @@
 
             hook.mounted(updateSidebarCurrentChapter);
             hook.doneEach(updateSidebarCurrentChapter);
+          },
+          function pageViewsPlugin(hook) {
+            function ensurePageViews() {
+              var counter = document.querySelector('.page-views');
+              if (counter) {
+                return counter;
+              }
+
+              counter = document.createElement('div');
+              counter.className = 'page-views';
+              counter.setAttribute('aria-label', '本页访问人次');
+              counter.innerHTML = '本页访问人次 <span id="busuanzi_value_page_pv">...</span>';
+              document.body.appendChild(counter);
+              return counter;
+            }
+
+            function ensureBusuanziScript() {
+              if (document.querySelector('script[data-page-views-counter]')) {
+                return;
+              }
+
+              var script = document.createElement('script');
+              script.async = true;
+              script.dataset.pageViewsCounter = 'true';
+              script.src = '//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js';
+              document.head.appendChild(script);
+            }
+
+            function updatePageViews() {
+              ensurePageViews();
+              ensureBusuanziScript();
+            }
+
+            hook.mounted(updatePageViews);
+            hook.doneEach(updatePageViews);
           }
         ],
         search: {

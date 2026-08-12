@@ -481,6 +481,19 @@ test('site shell marks only the current sidebar chapter as expanded', () => {
   assert.match(html, /hook\.mounted\(updateSidebarCurrentChapter\)/);
 });
 
+test('site shell shows the total visit count for the current page', () => {
+  const html = buildIndexHtml('GPU Notes');
+
+  assert.match(html, /function pageViewsPlugin/);
+  assert.match(html, /function ensurePageViews/);
+  assert.match(html, /className = 'page-views'/);
+  assert.match(html, /本页访问人次/);
+  assert.match(html, /id="busuanzi_value_page_pv"/);
+  assert.match(html, /busuanzi\.ibruce\.info\/busuanzi/);
+  assert.match(html, /hook\.mounted\(updatePageViews\)/);
+  assert.match(html, /hook\.doneEach\(updatePageViews\)/);
+});
+
 test('site css collapses subsection lists outside the current sidebar chapter', () => {
   const css = buildSiteCss();
 
@@ -488,6 +501,17 @@ test('site css collapses subsection lists outside the current sidebar chapter', 
   assert.match(css, /display: none;/);
   assert.match(css, /\.sidebar-nav > ul > li\.is-current-chapter > ul/);
   assert.match(css, /display: block;/);
+});
+
+test('site css keeps the visit count readable without covering content', () => {
+  const css = buildSiteCss();
+
+  assert.match(css, /\.page-views/);
+  assert.match(css, /position: fixed;/);
+  assert.match(css, /right: 18px;/);
+  assert.match(css, /bottom: 18px;/);
+  assert.match(css, /max-width: calc\(100vw - 36px\);/);
+  assert.match(css, /#busuanzi_value_page_pv/);
 });
 
 test('site css makes docs comfortable to read on phones', () => {

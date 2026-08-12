@@ -642,6 +642,41 @@ export function buildIndexHtml(title, repoUrl = DEFAULT_REPO_URL) {
 
             hook.mounted(updateSidebarCurrentChapter);
             hook.doneEach(updateSidebarCurrentChapter);
+          },
+          function pageViewsPlugin(hook) {
+            function ensurePageViews() {
+              var counter = document.querySelector('.page-views');
+              if (counter) {
+                return counter;
+              }
+
+              counter = document.createElement('div');
+              counter.className = 'page-views';
+              counter.setAttribute('aria-label', '本页访问人次');
+              counter.innerHTML = '本页访问人次 <span id="busuanzi_value_page_pv">...</span>';
+              document.body.appendChild(counter);
+              return counter;
+            }
+
+            function ensureBusuanziScript() {
+              if (document.querySelector('script[data-page-views-counter]')) {
+                return;
+              }
+
+              var script = document.createElement('script');
+              script.async = true;
+              script.dataset.pageViewsCounter = 'true';
+              script.src = '//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js';
+              document.head.appendChild(script);
+            }
+
+            function updatePageViews() {
+              ensurePageViews();
+              ensureBusuanziScript();
+            }
+
+            hook.mounted(updatePageViews);
+            hook.doneEach(updatePageViews);
           }
         ],
         search: {
@@ -754,6 +789,32 @@ body {
   left: var(--sidebar-width);
 }
 
+.page-views {
+  align-items: baseline;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  bottom: 18px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+  box-sizing: border-box;
+  color: #4b5563;
+  display: flex;
+  font-size: 13px;
+  gap: 6px;
+  line-height: 1.4;
+  max-width: calc(100vw - 36px);
+  padding: 8px 10px;
+  position: fixed;
+  right: 18px;
+  white-space: nowrap;
+  z-index: 35;
+}
+
+#busuanzi_value_page_pv {
+  color: #111827;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   body {
     font-size: 16px;
@@ -819,6 +880,16 @@ body {
     top: auto;
     width: 42px;
     z-index: 40;
+  }
+
+  .page-views {
+    bottom: 16px;
+    font-size: 12px;
+    left: 68px;
+    max-width: calc(100vw - 86px);
+    overflow: hidden;
+    right: 18px;
+    text-overflow: ellipsis;
   }
 }
 `;
