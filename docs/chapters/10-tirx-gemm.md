@@ -1051,6 +1051,6 @@ Step 4 用 TMA 替换线程 copy；Step 5 给 A/B operand 各增加 `PIPE_DEPTH=
 
 ---
 
-最后一次更新时间：`2026-08-12 20:23:36 CST`
+最后一次更新时间：`2026-08-21 21:11:44 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/10-tirx-gemm.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/10-tirx-gemm.md)

@@ -515,6 +515,6 @@ def neural_network_pallas_kernel(init_x_ref, w1_refs, w2_refs, out_ref, scratch_
 
 ---
 
-最后一次更新时间：`2026-08-12 20:23:36 CST`
+最后一次更新时间：`2026-08-21 21:11:44 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/08-tpu-and-distributed-communication-primitives.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/08-tpu-and-distributed-communication-primitives.md)

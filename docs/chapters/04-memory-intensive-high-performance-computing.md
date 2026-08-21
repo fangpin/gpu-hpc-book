@@ -543,6 +543,6 @@ Large scale tests (on scene 'DoubleSlit'):
 
 ---
 
-最后一次更新时间：`2026-08-12 20:23:36 CST`
+最后一次更新时间：`2026-08-21 21:11:44 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/04-memory-intensive-high-performance-computing.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/04-memory-intensive-high-performance-computing.md)

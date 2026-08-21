@@ -200,6 +200,6 @@ Running launch_mandelbrot_gpu_vector ...
 
 ---
 
-最后一次更新时间：`2026-08-12 20:23:36 CST`
+最后一次更新时间：`2026-08-21 21:11:44 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/00-computing-hardware-acceleration-ideas.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/00-computing-hardware-acceleration-ideas.md)

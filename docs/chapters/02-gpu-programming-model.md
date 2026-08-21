@@ -89,6 +89,6 @@ NVCC 首先调用预处理器，扫描源代码。它查找特定的 CUDA 关键
 
 ---
 
-最后一次更新时间：`2026-08-12 20:23:36 CST`
+最后一次更新时间：`2026-08-21 21:11:44 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/chapters/02-gpu-programming-model.md](https://fangpin.github.io/gpu-hpc-book/#/chapters/02-gpu-programming-model.md)

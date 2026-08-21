@@ -137,15 +137,13 @@ It is written for readers who want to understand how modern accelerators really 
   - [Step 5：多 stage pipeline 实现计算和数据搬运的重叠](chapters/10-tirx-gemm.md?id=step-5：多-stage-pipeline-实现计算和数据搬运的重叠)
   - [Step 6：Persistent kernel 让 CTA 持续领取 tile](chapters/10-tirx-gemm.md?id=step-6：persistent-kernel-让-cta-持续领取-tile)
 - [TIRx 与高性能GEMM (下)](chapters/11-tirx-gemm.md)
-  - [从 Warp Specialization 到 Cluster：GEMM 如何逼近 cuBLAS](chapters/11-tirx-gemm.md?id=从-warp-specialization-到-cluster：gemm-如何逼近-cublas)
-  - [为什么 TMA 之后还需要 warp specialization](chapters/11-tirx-gemm.md?id=为什么-tma-之后还需要-warp-specialization)
-  - [warpgroupsync(10) 是局部同步，不是 CTA 同步](chapters/11-tirx-gemm.md?id=warpgroupsync10-是局部同步，不是-cta-同步)
+  - [step7: warp specialization 和流水线化](chapters/11-tirx-gemm.md?id=step7-warp-specialization-和流水线化)
   - [Step 8：两个 CTA 组成 cluster，扩大片上复用半径](chapters/11-tirx-gemm.md?id=step-8：两个-cta-组成-cluster，扩大片上复用半径)
   - [Step 9：增加第二个 MMA consumer，让 B tile 被更多次使用](chapters/11-tirx-gemm.md?id=step-9：增加第二个-mma-consumer，让-b-tile-被更多次使用)
   - [性能结果：优化来自多层协同，而不是单个技巧](chapters/11-tirx-gemm.md?id=性能结果：优化来自多层协同，而不是单个技巧)
   - [读这类 kernel 时的三个抓手](chapters/11-tirx-gemm.md?id=读这类-kernel-时的三个抓手)
 - [参考](chapters/12-references.md)
 
-Last updated: `2026-08-12 20:23:36 CST`
+Last updated: `2026-08-21 21:11:44 CST`
 
 原文链接：[https://fangpin.github.io/gpu-hpc-book/#/README.en.md](https://fangpin.github.io/gpu-hpc-book/#/README.en.md)
