@@ -17,6 +17,6 @@ chapters/10-tirx
 chapters/11-tirx-gemm
 chapters/12-tirx-gemm
 chapters/13-flash-attention-4-blackwell-softmax-tensor-core
-chapters/14-triton-vector-add-kernel
+chapters/14-triton
 chapters/15-chapter
 ```

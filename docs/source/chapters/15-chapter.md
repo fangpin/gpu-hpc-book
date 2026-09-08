@@ -20,4 +20,7 @@
 - [Scaling GEMM with Warp Specialization and Clusters](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_gemm_advanced/index.html)
 - [mlc-ai/modern-gpu-programming-for-mlsys](https://github.com/mlc-ai/modern-gpu-programming-for-mlsys)
 - [MLC.AI Modern GPU Programming for MLSys - Flash Attention 4](https://mlc.ai/modern-gpu-programming-for-mlsys/chapter_flash_attention/index.html)
-- [FlashAttention-4: Faster Attention with Asynchrony and Low-precision](https://arxiv.org/abs/2603.05451)。
+- [FlashAttention-4: Faster Attention with Asynchrony and Low-precision](https://arxiv.org/abs/2603.05451)
+- [Triton Tutorial - Vector Addition](https://triton-lang.org/main/getting-started/tutorials/01-vector-add.html)；[triton-lang/triton](https://github.com/triton-lang/triton)
+- [Triton Tutorial - Fused Softmax](https://triton-lang.org/main/getting-started/tutorials/02-fused-softmax.html)；[triton-lang/triton](https://github.com/triton-lang/triton)
+- [Triton Tutorial - Matrix Multiplication](https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html)；[triton-lang/triton](https://github.com/triton-lang/triton)
