@@ -7,8 +7,18 @@ from pathlib import Path
 meta_path = Path(__file__).resolve().parent.parent / "project.json"
 meta = json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
 
-project = meta.get("title", "Docs")
-author = ""
+project = meta.get("title", "GPU 高性能计算")
+author = "Pin Fang"
+copyright = "2026, Pin Fang"
+html_show_sphinx = False
+
+templates_path = ["_templates"]
+author_url = "https://github.com/fangpin"
+html_context = {
+    "author": author,
+    "author_url": author_url,
+}
+
 
 extensions = ["myst_parser"]
 myst_enable_extensions = [
@@ -36,7 +46,8 @@ def _github_slug() -> str | None:
         return slug
     try:
         url = subprocess.check_output(
-            ["git", "config", "--get", "remote.origin.url"], text=True,
+            ["git", "config", "--get", "remote.origin.url"],
+            text=True,
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         return None
@@ -48,7 +59,8 @@ def _default_branch() -> str:
     """Remote default branch (e.g. master) via origin/HEAD, else main."""
     try:
         ref = subprocess.check_output(
-            ["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], text=True,
+            ["git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+            text=True,
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         return "main"
@@ -66,6 +78,8 @@ if github_slug:
         "display_github": True,
         "github_user": github_user,
         "github_repo": github_repo,
-        "github_version": meta.get("github_branch") or os.environ.get("GITHUB_REF_NAME") or _default_branch(),
+        "github_version": meta.get("github_branch")
+        or os.environ.get("GITHUB_REF_NAME")
+        or _default_branch(),
         "conf_py_path": "/docs/source/",
     }
