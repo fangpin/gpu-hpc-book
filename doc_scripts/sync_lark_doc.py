@@ -17,12 +17,12 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import unicodedata
 import urllib.error
 import urllib.request
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIR = ROOT / "docs" / "source"
@@ -45,8 +45,6 @@ H1_RE = re.compile(r"^#\s+\S")
 H2_RE = re.compile(r"^#{2,6}\s+\S")
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)(\s+\"[^\"]*\")?\)")
-# Feishu serves doc images as https://<host>/file/<file_token>, which needs auth.
-LARK_FILE_URL_RE = re.compile(r"^https?://[^/]+/file/([A-Za-z0-9]+)")
 ESCAPE_RE = re.compile(r"\\([*_$\[\]()])")
 FOOTNOTE_DEF_RE = re.compile(r"^\[\^([^\]]+)\]:")
 FOOTNOTE_REF_RE = re.compile(r"\[\^([^\]]+)\]")
@@ -250,7 +248,6 @@ def split_chapters(markdown: str) -> tuple[str | None, str, list[str]]:
 
 
 def extension_for(data: bytes, content_type: str | None) -> str | None:
-    """Extension for image bytes, or None when the payload is not an image."""
     if data[:3] == b"\xff\xd8\xff":
         return ".jpg"
     if data[:8] == b"\x89PNG\r\n\x1a\n":
@@ -263,51 +260,47 @@ def extension_for(data: bytes, content_type: str | None) -> str | None:
     return CONTENT_TYPE_EXT.get(ct)
 
 
-def save_image(data: bytes, content_type: str | None, dest: Path, index: int, source: str) -> Path | None:
-    # Content-Type can disagree with the actual bytes, so sniff first. Anything
-    # that isn't an image is usually a login/error page served with status 200.
-    ext = extension_for(data, content_type)
-    if ext is None:
-        kind = (content_type or "unknown").split(";")[0].strip()
-        print(f"  warning: not an image ({len(data)} bytes of {kind}): {source[:120]}", file=sys.stderr)
+def lark_file_token_from_url(url: str) -> str | None:
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    if not (
+        host == "feishu.cn"
+        or host.endswith(".feishu.cn")
+        or host == "larkoffice.com"
+        or host.endswith(".larkoffice.com")
+        or host == "larksuite.com"
+        or host.endswith(".larksuite.com")
+    ):
         return None
+    parts = [unquote(part) for part in parsed.path.split("/") if part]
+    if len(parts) >= 2 and parts[0] == "file":
+        return parts[1]
+    return None
+
+
+def fetch_lark_media(token: str, dest: Path, basename: str) -> tuple[bytes, str] | None:
+    """Fetch a protected Feishu media token through lark-cli and return its saved bytes."""
     dest.mkdir(parents=True, exist_ok=True)
-    path = dest / f"image-{index:02d}{ext}"
-    path.write_bytes(data)
-    return path
-
-
-def download_lark_media(token: str, dest: Path, index: int) -> Path | None:
-    """Download a Feishu-hosted image through lark-cli, which carries the auth."""
-    # --output must be relative to the working directory, so stage in a temp dir.
-    with tempfile.TemporaryDirectory() as tmp:
-        # Some media 403 on +media-download but are still readable via +media-preview.
-        for subcommand in ("+media-download", "+media-preview"):
-            try:
-                payload = run_lark_cli(
-                    ["docs", subcommand, "--token", token, "--output", "./media", "--format", "json"],
-                    cwd=tmp,
-                )
-            except SystemExit:
-                continue
-            data = payload.get("data", {})
-            saved = Path(data.get("saved_path", ""))
-            if saved.is_file():
-                return save_image(saved.read_bytes(), data.get("content_type"), dest, index, token)
-        print(f"  warning: lark-cli could not fetch image {token}", file=sys.stderr)
-        return None
-
-
-def download_remote_image(url: str, dest: Path, index: int) -> Path | None:
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = resp.read()
-            content_type = resp.headers.get("Content-Type")
-    except (urllib.error.URLError, OSError) as exc:
-        print(f"  warning: failed to download image ({exc}): {url[:120]}", file=sys.stderr)
+        payload = run_lark_cli([
+            "docs", "+media-preview", "--token", token, "--output", basename,
+            "--overwrite", "--json",
+        ], cwd=dest)
+    except SystemExit as exc:
+        print(f"  warning: failed to fetch Feishu media ({exc}): {token}", file=sys.stderr)
         return None
-    return save_image(data, content_type, dest, index, url)
+    data = payload.get("data", {})
+    saved_path = Path(data.get("saved_path", ""))
+    if not saved_path.is_file():
+        print(f"  warning: Feishu media download did not create a file: {token}", file=sys.stderr)
+        return None
+    image = saved_path.read_bytes()
+    ext = extension_for(image, data.get("content_type"))
+    if ext is None:
+        saved_path.unlink(missing_ok=True)
+        print(f"  warning: Feishu media is not an image: {token}", file=sys.stderr)
+        return None
+    return image, ext
 
 
 def localize_images(content: str, slug: str) -> str:
@@ -319,12 +312,32 @@ def localize_images(content: str, slug: str) -> str:
             urls.append(url)
     replacements: dict[str, str] = {}
     for i, url in enumerate(urls, 1):
-        token = LARK_FILE_URL_RE.match(url)
-        saved = (download_lark_media(token.group(1), IMAGES_DIR / slug, i) if token
-                 else download_remote_image(url, IMAGES_DIR / slug, i))
-        if saved is None:
-            continue  # leave the remote URL in place so the gap stays visible
-        replacements[url] = f"../assets/images/{slug}/{saved.name}"
+        dest = IMAGES_DIR / slug
+        basename = f"image-{i:02d}"
+        token = lark_file_token_from_url(url)
+        if token:
+            fetched = fetch_lark_media(token, dest, basename)
+            if fetched is None:
+                continue
+            data, ext = fetched
+            output = dest / f"{basename}{ext}"
+            output.write_bytes(data)
+            replacements[url] = f"../assets/images/{slug}/{output.name}"
+            continue
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = resp.read()
+                ext = extension_for(data, resp.headers.get("Content-Type"))
+        except (urllib.error.URLError, OSError) as exc:
+            print(f"  warning: failed to download image ({exc}): {url[:120]}", file=sys.stderr)
+            continue
+        if ext is None:
+            print(f"  warning: downloaded URL is not an image: {url[:120]}", file=sys.stderr)
+            continue
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / f"{basename}{ext}").write_bytes(data)
+        replacements[url] = f"../assets/images/{slug}/{basename}{ext}"
 
     def sub(m: re.Match) -> str:
         url = m.group(2)

@@ -18,5 +18,7 @@ chapters/11-tirx-gemm
 chapters/12-tirx-gemm
 chapters/13-flash-attention-4-blackwell-softmax-tensor-core
 chapters/14-triton
-chapters/15-chapter
+chapters/15-triton-gluon
+chapters/16-nsight-systems
+chapters/17-chapter
 ```
