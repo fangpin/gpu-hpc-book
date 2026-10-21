@@ -136,6 +136,8 @@ Scope 已经通过 grid 把大数组切给多个 CTA。性能缺口集中在 Lay
 
 ## GLUON Tensor Layouts
 
+<whiteboard token="NBTzwgWeihbJ6LbIqpPlBAlXgIg"></whiteboard>
+
 上一节的 `memcpy` 已经用 grid 把输入切给多个 CTA，却仍让每个 CTA 在循环里逐元素复制。缺少的环节是 layout：它规定一个 tile 里的逻辑元素分别由哪个 warp、哪个 lane 和该 lane 的哪个寄存器持有。Gluon 要求 tensor 携带 layout，正是为了让这种映射成为程序语义的一部分。
 
 显式 layout 带来两件事。开发者可以按照全局内存的连续方向组织线程访问，也可以让归约、扫描和矩阵乘法看到更合适的数据分布；与此同时，布局选错会直接表现为访存不合并、跨线程通信增多、共享内存占用上升或寄存器压力过大。

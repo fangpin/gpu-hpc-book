@@ -53,6 +53,8 @@ ncu --version
 
 ## 用 Nsight Systems 建立端到端时间线
 
+<whiteboard token="We25wZrk0hjfotbsBl0lIt9NgOf"></whiteboard>
+
 ### 从一条可复现命令开始
 
 下面的命令同时采集 CUDA 活动、NVTX 标注和操作系统运行时事件。`file.py` 与输入文件替换为真实推理入口：

@@ -34,7 +34,7 @@ local: true
 - **字节数**：12n^2 Bytes。
 - $\text{OI}_{ideal} = \frac{2n^3}{12n^2} = \frac{n}{6} \text{ FLOPs/Byte}$
 
-> **结论**：OI 随 $n$ 线性增长。这意味着随规模扩大，算法会从内存受限转为计算受限。
+> **结论**：OI 随 n 线性增长。这意味着随规模扩大，算法会从内存受限转为计算受限。
 
 ### 从 Memory-bound 到 Compute-bound 的转变
 
@@ -54,23 +54,19 @@ $$n \ge 445$$
 
 > 结论：理论上当 n>=445 时，程序进入 **Compute-bound** 区域。
 
-**你想让我帮你推导一下使用 Shared Memory Tiling 时具体的 OI 公式吗？这能帮你更精确地预测性能。**
-
 
 
 ## 显性的矩阵乘法性能分析
 
-接着对 3072 * 3072 矩阵乘法（GEMM）在 **RTX 4000 Ada** 上的性能分析，涵盖了从理论峰值到不同缓存层级限制下的深度计算。
+接着对 3072 * 3072 矩阵乘法（GEMM）在 **RTX 4000 Ada** 上进行性能分析，涵盖了从理论峰值到不同缓存层级限制下的深度计算。
 
 ### 基本数据
 
-- **计算峰值 (Peak FP32)**: 26.7 \text TFLOPS}$ (忽略 Tensor Cores)
-- **内存带宽 (Peak DRAM Bandwidth)**: $360 \text{ GB/s}$
-- **L2 缓存带宽**: $\approx 2.5 \text{ TB/s}$
-- **矩阵规模**: $n = 3072$
-- **总运算量**: $2n^3 = 2 \times (3072)^3 \approx 5.798 \times 10^{10} \text{ FLOPs}$
-
----
+- **计算峰值 (Peak FP32)**: 26.7 TFLOPS (忽略 Tensor Cores)
+- **内存带宽 (Peak DRAM Bandwidth)**: 360 GB/s
+- **L2 缓存带宽**: ～2.5 TB/s
+- **矩阵规模**: n = 3072
+- **总运算量**: 2n^3 = 5.798 * 10^10  FLOPs
 
 ### 理论极限分析
 
@@ -90,7 +86,7 @@ $$\text{Time}_{ideal_dram} = \frac{0.11325 \text{ GB}}{360 \text{ GB/s}} \approx
 
 #### (3) 结论：谁统治了运行时间？
 
-比较 (1) 和 (2)：**计算时间 2.17 ms) 远大于 DRAM 搬运时间 (0.31 ms)**。
+比较 (1) 和 (2)：**计算时间 2.17 ms 远大于 DRAM 搬运时间 (0.31 ms)**。
 
 这意味着，在经过良好优化（如 Shared Memory Tiling）并实现高数据复用的情况下，该工作负载的运行时间应由**计算（Compute）主导**。此时，数据的搬运被隐藏在计算背后。
 
@@ -101,7 +97,7 @@ $$\text{Time}_{ideal_dram} = \frac{0.11325 \text{ GB}}{360 \text{ GB/s}} \approx
 如果不利用缓存，每次 $C_{i,j} = \sum A_{i,k} \times B_{k,j}$ 都要从 DRAM 重新读取 $A$ 和 B：
 
 - 每次乘加操作加载 2 个元素（8 字节）。
-- 总操作次数为 $n^3$（乘加对）。
+- 总操作次数为 n^3（乘加对）。
 - $\text{Total Bytes} = 8 \times n^3 = 8 \times (3072)^3 \approx \mathbf{231.87 \text{ GB}}$
 
 #### (5) 无复用情况下，DRAM 带宽约束下的最快时间？
@@ -138,7 +134,9 @@ $$\text{Time}_{L2_bound} = \frac{231.87 \text{ GB}}{2500 \text{ GB/s}} \approx \
 
 ## 矩阵乘法中的分块与数据复用
 
-- **核心挑战**：矩阵乘法的计算复杂度是 O(N^3)，而数据量是 N^2。如果直接从全局内存（Global Memory）读取数据，程序将受限于内存带宽（Memory Bound），而非算力。
+<whiteboard token="BgpXwuGVwhIquvbwEMblOxH3gNg"></whiteboard>
+
+- **核心挑战**：矩阵乘法的计算复杂度是 O(N^3)，而数据量是 N^2。如果直接从全局内存（Global Memory）读取数据(数据访问量退化成O(N^3))，程序将受限于内存带宽（Memory Bound），而非算力。
 - **优化思路**：利用 **Shared Memory (L1 SRAM)** 和 **Registers** 进行数据复用，减少对低速全局内存的访问。
 
 两个层级的复用：
@@ -152,7 +150,7 @@ $$\text{Time}_{L2_bound} = \frac{231.87 \text{ GB}}{2500 \text{ GB/s}} \approx \
   2. 调用 `__syncthreads()` 同步，确保块内所有线程都完成了加载。
   3. 在 Shared Memory 中进行计算。
   4. 重复上述过程，直到完成 K 维的遍历。
-- **收益**：全局内存的访问次数减少了 Tile_Size 倍 (从 2N^3 下降到 2N^3/Tile_size)。例如tile为16*16时，内存防卫此时减少约93%。
+- **收益**：全局内存的访问次数减少了 Tile_Size 倍 (从 2N^3 下降到 2N^3/Tile_size)。例如tile为16*16时，内存访问此时减少约93%。
 
 **参考实现：**
 
@@ -228,6 +226,65 @@ void launch_matmul_l1(
         CUDA_CHECK(cudaGetLastError());
 }
 ```
+
+#### **代码逐段解读**
+
+**启动端 launch_matmul_l1**
+
+- `block_size = 32`：每个 block 是 32×32 = 1024 个线程，接近单 block 线程数上限。
+- grid 维度按 C 的行列切分：`grid_x = ceil(size_j/32)`，`grid_y = ceil(size_i/32)`。
+- 动态共享内存 2 × 32 × 32 × 4B = 8KB，`sh_a` 和 `sh_b` 各占一半。由于 8KB 可能超过默认动态 shared memory 上限，先用 `cudaFuncSetAttribute` 提升 `MaxDynamicSharedMemorySize`。
+
+**kernel 主体 matmul_l1**
+
+**shared memory 划分**
+
+`sh_a` 占前 `blockDim.x * blockDim.y` 个 float，`sh_b` 紧随其后。
+
+**线程到输出元素的映射**
+
+`row = blockIdx.y * blockDim.y + threadIdx.y`，`col = blockIdx.x * blockDim.x + threadIdx.x`。每个线程负责算 C[row][col] 一个元素，`vc` 是累加器。
+
+**沿 K 方向分块循环**
+
+`k` 是当前处理的 K 方向 tile 索引，每个 tile 宽 32，循环次数 `ceil(size_k/32)`。
+
+**加载 A 的 tile 到 sh_a**
+
+全局坐标 `gy_a = blockIdx.y*32 + threadIdx.y`（A 的行），`gx_a = k*32 + threadIdx.x`（A 的列，即 K 方向当前 tile）。越界判断 `gy_a < size_i && gx_a < size_k`，否则填 0。32×32 线程恰好搬完一个 32×32 tile。
+
+**加载 B 的 tile 到 sh_b**
+
+全局坐标 `gy_b = k*32 + threadIdx.y`（B 的行 = K 方向），`gx_b = blockIdx.x*32 + threadIdx.x`（B 的列）。同样越界补 0。
+
+**__syncthreads() 的作用**
+
+等所有线程把 tile 加载完才能读 sh_a/sh_b 做计算，否则会读到未初始化数据。
+
+**点积累加**
+
+对当前 32×32 的 A tile 和 B tile 做矩阵乘，累加到 `vc`。`#pragma unroll` 让编译器展开循环。注意 `sh_a` 行索引固定为 `threadIdx.y`、列遍历 `t_i`；`sh_b` 列索引固定为 `threadIdx.x`、行遍历 `t_i`，正好对应 `C[row][col] = Σ A[row][t_i] * B[t_i][col]`。
+
+**第二次 __syncthreads()**
+
+等所有线程用完 shared memory 后再进入下一轮循环覆盖 sh_a/sh_b，避免加载还没算完就被覆盖。
+
+**写回结果**
+
+越界线程不写，只写合法的 `C[row][col]`。
+
+**关键设计点**
+
+- **为什么用 shared memory**：naive 实现每个 C 元素要读 K 次 A 和 K 次 B，全局内存访问量 2*I*J*K。分块后每个 tile 的 A/B 数据在 shared memory 中被复用 32 次，全局内存访问降为 2*I*J*K/32。
+- **两次 __syncthreads()**：一次保证加载完成再算，一次保证计算完成再覆盖，少一次都会出错。
+- **越界补 0**：让尺寸不是 32 整数倍的矩阵也能正确计算，不需要 padding。
+- **#pragma unroll**：固定 32 次的小循环展开，减少循环开销，也利于指令调度。
+
+**潜在改进点（基础 L1 版本）**
+
+- 没有使用寄存器分块（一个线程算多个 C 元素），寄存器复用率低。
+- 没有向量化加载（float4），内存带宽利用率一般。
+- 这是 FP32 版本，modern GPU 上可用 Tensor Core（wmma/mma）获得数量级提升。
 
 **性能测试：**
 
@@ -366,6 +423,72 @@ void launch_matmul_l1_reg(
 }
 ```
 
+#### 一个线程计算 8×8 个输出
+
+这版 kernel 在 Shared Memory Tiling 上又加了一层 Register Tiling。共享内存负责 block 级数据复用，寄存器负责线程级数据复用。当前实例化参数是 `MB=8`、`TS=128`，block 为 16×16 个线程。因此，一个 block 计算 C 的 128×128 tile，每个线程计算其中连续的 8×8 微块。
+
+| 层级 | 负责范围 | 当前大小 |
+|-|-|-|
+| Grid | 完整矩阵 C | ceil(M/128) × ceil(N/128) |
+| Thread Block | C 的一个 block tile | 128×128 |
+| Thread | C 的一个 register tile | 8×8 |
+| K 方向 tile | 一次搬入共享内存的 K 范围 | 16 |
+
+`row_start = blockIdx.y * TS + threadIdx.y * MB`，`col_start = blockIdx.x * TS + threadIdx.x * MB`。线程坐标 `(ty, tx)` 对应输出行 `ty*8 ... ty*8+7` 和输出列 `tx*8 ... tx*8+7`。16 个线程组乘以每组 8 行或 8 列，正好覆盖 128×128 的 block tile。
+
+#### 共享内存保存两个 K tile
+
+动态共享内存被分成 `sh_a` 和 `sh_b`：
+
+- `sh_a` 的逻辑形状是 128×16，对应 A 的 `[M tile, K tile]`。
+- `sh_b` 的逻辑形状是 16×128，对应 B 的 `[K tile, N tile]`。
+
+每个线程从 A 搬 8 个元素：行坐标由 `row_start+i` 决定，K 坐标由 `threadIdx.x` 决定。256 个线程一共搬入 `256×8=2048` 个元素，恰好填满 128×16 的 A tile。
+
+B 的搬运方式与此对称：每个线程负责同一 K 行上的连续 8 列，256 个线程同样搬入 2048 个元素，填满 16×128 的 B tile。矩阵边缘或最后一个不完整 K tile 越界时写入 0，所以计算主体不需要再做分支判断。
+
+第一次 `__syncthreads()` 保证 A、B tile 全部就绪后再开始计算。第二次同步保证所有线程已经用完当前 tile，随后才能覆盖共享内存并加载下一轮数据。
+
+#### 寄存器外积完成线程级复用
+
+`vc[8][8]` 是每个线程的 64 个累加器。对当前 K tile 中的每个位置 `i`，线程先从共享内存读取：
+
+- `va[0..7]`：当前线程负责的 8 行 A 数据。
+- `vb[0..7]`：当前线程负责的 8 列 B 数据。
+
+随后执行一个 8×8 外积：
+
+```c++
+for (int row = 0; row < 8; ++row)
+  for (int col = 0; col < 8; ++col)
+    vc[row][col] += va[row] * vb[col];
+```
+
+一次内层迭代只从共享内存读取 16 个 float，却完成 64 次 FMA。每个 `va[row]` 被 8 个输出列复用，每个 `vb[col]` 被 8 个输出行复用。与一个线程只计算一个输出元素的版本相比，MB=8 时，每次 FMA 对共享内存的读取量从 2 个 float 降到 `2/8=0.25` 个 float，减少 8 倍。
+
+一个 K tile 有 16 个位置，因此每个线程每轮完成 `16×8×8=1024` 次 FMA；整个 block 完成 `128×128×16` 次 FMA。所有 K tile 累加结束后，线程把自己的 8×8 微块写回 C，并用边界判断处理 M、N 不是 128 整数倍的情况。
+
+#### 启动参数如何对应 kernel
+
+| 参数 | 值 | 含义 |
+|-|-|-|
+| `block_size` | 16 | block 为 16×16，共 256 个线程；K tile 宽度也是 16 |
+| `micro_block_size` | 8 | 每个线程计算 8×8 个 C 元素 |
+| `tile_size` | 128 | `16×8`，即 block 的 M/N tile 边长 |
+| `share_mem_bytes` | 16384 B | A、B 各占 `128×16×4 B`，合计 16 KiB |
+
+`matmul_l1_reg<micro_block_size, tile_size>` 选择具体模板实例，grid 则按 128×128 切分输出矩阵。当前 16 KiB 动态共享内存在 V100 上通常低于默认的 48 KiB 上限，因此这里的 `cudaFuncSetAttribute` 往往不是必需的；当动态共享内存超过默认上限时，这个 opt-in 设置才是关键。
+
+#### 性能收益和实现边界
+
+寄存器分块减少了共享内存读取，也让一条 A 或 B 数据参与更多 FMA。代价是寄存器压力明显增加：仅 `vc` 就有 64 个 float，再加上 `va`、`vb` 和索引变量。编译器通常会把这些固定长度数组放进寄存器，但寄存器不足时可能 spill 到 local memory，反而拖慢 kernel。实际是否溢出应查看 `ptxas` 的寄存器统计或 Nsight Compute 指标。
+
+这段实现还有几个隐含约束和优化空间：
+
+- `TS == blockDim.x * MB`，并且代码默认 `blockDim.x == blockDim.y`。当前启动参数满足这些条件，但 kernel 没有显式检查。
+- B 的全局内存加载在同一条 load 指令中以 8 个 float 为步长跨线程访问，合并效果不如连续加载；`sh_b` 的读取也可能出现 bank conflict。可以把协作加载映射与计算映射分开，并对共享内存布局做 transpose 或 swizzle。
+- 小矩阵无法摊薄更大的线程微块、寄存器初始化和调度开销，所以性能测试中 256×256 的输入反而更慢；3072×3072 时才体现出 2.88 倍加速。
+
 **性能测试：（对比Shared Memory Tiling）**
 
 寄存器复用比shared memory复用，带来了2.88x倍性能提升。
@@ -468,7 +591,7 @@ $$\text{Required Parallelism} = \text{Latency} \times \text{Throughput}$$
 
 ### 总结
 
-1. **并行不只是越多越好**：超过饱和点后的占用率提升对带宽没有贡献。
+1. **并行度不只是越大越好**：超过饱和点后的占用率提升对带宽没有贡献。
 2. **利特尔法则是调优的指南针**：它告诉了我们硬件流水线的“深度”。
 3. **资源权衡**：通过 Shared Memory 或寄存器限制 Occupancy 是调试性能瓶颈的常用技巧。
 
@@ -478,7 +601,7 @@ $$\text{Required Parallelism} = \text{Latency} \times \text{Throughput}$$
 
 在高性能计算（HPC）与 GPU 编程领域，矩阵乘法（Matrix Multiplication）的优化始终是衡量硬件利用率的核心基准。在完成基础的数据复用优化后，进一步的性能提升往往取决于对硬件调度（Scheduling）**与**占用率（Occupancy）的深度掌控。
 
-本篇笔记整理自针对矩阵乘法改进调度的技术实验，重点探讨如何通过改进调度策略来最大化硬件资源的并行潜力。
+
 
 ## 调度优化
 
@@ -506,13 +629,15 @@ $$\text{Required Parallelism} = \text{Latency} \times \text{Throughput}$$
     - **优势：** 减少了寄存器压力，且 Warp 在拷贝期间不会被阻塞。
     - **管理：** 通过“提交组”（Commit Group）批量管理异步任务，并使用显式的等待（Wait）指令确保数据就绪。
 
+以上优化思路的展开讨论和具体实现将留到后续章节。
+
 ## Tensor Cores
 
 ### 什么是 Tensor Core？
 
 - **非传统核心**：它不是像 CPU/GPU 核心那样拥有独立指令流的处理器，而是一个**专用数学函数单元**（类似于高级 FPU/ALU）。
 - **协作执行**：Tensor Core 指令以 **Warp（线程束，32 个线程）** 为基本单位。单线程无法独立调用，必须由 Warp 内的所有线程协同完成一个矩阵块的操作。
-- **计算模式**：主要执行 D = A * B + C 的矩阵乘加运算。
+- **计算模式**：主要执行 **D = A * B + C** 的矩阵乘加运算。
 
 ### TF32 (TensorFloat-32) 精度
 
@@ -527,7 +652,7 @@ Tensor core 支持使用 TF32，它是专门为保持 FP32 兼容性而设计的
 
 - **`mma.sync.aligned.m16n8k8...`**：
 
-  - **矩阵尺寸**：A(16 * 8) * B(8 * 8) + C(16 * 8)$。
+  - **矩阵尺寸**：(沿用**D = A * B + C**的表示方法) A(16 * 8) * B(8 * 8) + C(16 * 8)。
   - **寄存器消耗**：
   
     - **A**：由 Warp 分担，每线程需 4 个寄存器。
@@ -536,16 +661,235 @@ Tensor core 支持使用 TF32，它是专门为保持 FP32 兼容性而设计的
 
 ### 寄存器布局（Register Layout）—— 最难点
 
-Tensor Core 要求数据在 Warp 的 32 个线程的寄存器中以**特定布局**排列。
+先把“布局”分清。这里同时存在三套不同的映射：矩阵的行主序或列主序、数据在 shared memory 中的排布、矩阵元素在 32 个 lane 的寄存器中的分布。`mma.sync` 直接消费的是第三种，也就是 **register fragment layout**。前两种布局最终都要转换成它要求的 fragment。
 
-- **A 矩阵 (Row-Major)**：被划分为四个象限，每个象限映射到一个特定的寄存器组。
-- **B 矩阵 (Col-Major)**：垂直划分为两半，按列主序排列在寄存器中。
-- **数据重排（Swizzling）**：由于内存中的数据通常是行主序，在载入寄存器之前或之后，必须通过代码（如 `__shfl_sync` 或特定的 Shared Memory 索引）进行重排，以满足 Tensor Core 的布局要求。
+<whiteboard token="JT1Tw7eIDhZzFDbYabLlc3FHg5d"></whiteboard>
+
+#### 一条 MMA 指令由整个 warp 共同完成
+
+以 `mma.sync.aligned.m16n8k8.row.col.f32.tf32.tf32.f32` 为例，一个 warp 共同计算：
+
+```
+D[16, 8] = A[16, 8] × B[8, 8] + C[16, 8]
+```
+
+这 32 个线程各自只持有 A、B、C/D 的一小片 fragment。单个线程手里的寄存器既不是完整的一行，也不是一个连续的小矩形；只有把整个 warp 的寄存器合起来，才构成逻辑矩阵。32 个 lane 必须一致地执行同一条 `mma.sync`。如果 warp 在此处分支，只有部分 lane 到达指令，或者不同 lane 执行了不同的 MMA，结果是未定义的。
+
+| 操作数 | 逻辑形状 | TF32 每 lane 持有的元素 | 32 位寄存器数 | 全 warp 覆盖 |
+|-|-|-|-|-|
+| A | 16 × 8 | 4 | 4 | 32 × 4 = 128 个元素 |
+| B | 8 × 8 | 2 | 2 | 32 × 2 = 64 个元素 |
+| C/D | 16 × 8 | 4 | 4 | 32 × 4 = 128 个元素 |
+
+上表也解释了前文的“每线程 4/2/4 个寄存器”：它对应 TF32 输入和 FP32 累加。若输入改为 FP16 或 BF16，PTX 会把两个 16 位元素装进一个 32 位寄存器。此时 A 的 4 个元素只占 2 个寄存器，B 的 2 个元素只占 1 个寄存器；若累加器仍为 FP32，C/D 仍占 4 个寄存器。讨论寄存器数量时，必须把指令 shape、输入类型和累加类型一起写全。
+
+#### lane ID 决定每个寄存器对应的矩阵坐标
+
+对上述 `m16n8k8` TF32 指令，先把 lane ID 拆成两部分：
+
+```
+group_id = lane_id >> 2     // 0..7
+thread_in_group = lane_id & 3 // 0..3
+```
+
+可以把一个 warp 看成 8 个四线程小组。令 `g = group_id`、`t = thread_in_group`，每个 lane 中的寄存器与逻辑坐标对应如下：
+
+| 寄存器 | 逻辑坐标 |
+|-|-|
+| `a0, a1, a2, a3` | `(g,t), (g+8,t), (g,t+4), (g+8,t+4)` |
+| `b0, b1` | `(t,g), (t+4,g)` |
+| `c0, c1, c2, c3` | `(g,2t), (g,2t+1), (g+8,2t), (g+8,2t+1)` |
+
+例如，lane 5 有 `g=1`、`t=1`，它持有：
+
+- A：`A[1,1]`、`A[9,1]`、`A[1,5]`、`A[9,5]`；
+- B：`B[1,1]`、`B[5,1]`；
+- C/D：`C/D[1,2]`、`C/D[1,3]`、`C/D[9,2]`、`C/D[9,3]`。
+
+这个例子能直接看出两个特点：同一 lane 负责的元素往往跨越相距 8 行或 4 列的位置；A、B 和累加器的映射也不相同。因此，不能用“每个线程负责一个连续小块”来理解 Tensor Core。
+
+<whiteboard token="ELCwwEB4whOc6Ib5jNqlGFH3gYb"></whiteboard>
+
+#### FP16/BF16 的元素映射和物理寄存器数量不同
+
+对 `m16n8k8` 的 FP16/BF16 输入，A 的四个逻辑元素仍分布在上下两个 8 行区域，但坐标公式变为 `(g,2t)`、`(g,2t+1)`、`(g+8,2t)`、`(g+8,2t+1)`；B 的两个元素位于 `(2t,g)` 和 `(2t+1,g)`。相邻的两个半精度值会打包到同一个 `.f16x2` 或 `.bf16x2` 寄存器中。由此可见，fragment 布局由 **指令 shape 与数据类型共同决定**，不能把 TF32 的坐标公式直接套到 FP16/BF16 上。
+
+#### row/col、shared-memory swizzle 和 fragment 是三回事
+
+| 层次 | 它回答的问题 | 常见写法 |
+|-|-|-|
+| 逻辑矩阵布局 | 相邻地址沿行还是沿列变化 | `row` / `col` |
+| Shared Memory 布局 | warp 搬运 tile 时是否产生 bank conflict，地址是否适合批量加载 | padding、XOR swizzle、permuted layout |
+| 寄存器 fragment 布局 | 某个矩阵元素最终落到哪个 lane 的哪个寄存器 | PTX ISA 为具体的 `mma` shape/type 固定定义 |
+
+`row.col` 描述 A 和 B 的逻辑主序，并不表示每个线程会拿到一段连续行或连续列。shared-memory swizzle 主要解决 bank conflict；register fragment layout 则是 MMA 指令的输入接口。二者可能看起来都在“重排数据”，目标却不同。
+
+#### `ldmatrix` 把 shared-memory tile 分发到正确的 lane
+
+FP16/BF16 kernel 常用 `ldmatrix.sync.aligned.m8n8.x1/x2/x4.shared.b16`，由整个 warp 协作把一个或多个 8 × 8 tile 从 shared memory 装入寄存器。它的价值不只是一次读很多数据，还会把读到的元素直接分发到 MMA 需要的 lane/register 位置；`.trans` 变体可用于转置式加载。
+
+不过，`ldmatrix` 不会替你设计 shared-memory 地址。kernel 仍需保证各 lane 提供的地址指向正确行，并通过 padding 或 swizzle 避免 bank conflict。对 TF32 这类 32 位输入，常见实现会使用普通的 shared-memory load、编译器内建原语或库封装，不应照搬 `.b16` 的 `ldmatrix` 路径。
+
+#### 完整的数据路径
+
+| 阶段 | 主要目标 | 常见错误 |
+|-|-|-|
+| Global Memory → Shared Memory | 合并访存，搬入当前 K tile | 越界、非合并访问、异步拷贝同步错误 |
+| Shared Memory 内部布局 | 减少 bank conflict，为 warp 级加载准备地址 | 只改 swizzle，忘了同步修改读写两端的索引 |
+| Shared Memory → Register | 用 `ldmatrix` 或普通 load 形成 A/B fragment | 转置标记、lane 地址或打包顺序错误 |
+| `mma.sync` | warp 共同执行 `D=A×B+C` | shape/type 不匹配，warp 分支导致参与线程不一致 |
+| Accumulator → Shared/Global Memory | 按 C/D 的 fragment 坐标写回输出 tile | 误以为每个 lane 的四个结果在内存中连续 |
+
+#### 最稳妥的验证方法是给每个元素编码
+
+寄存器布局出错时，数值通常仍然“像是算出来的”，只是在行、列或象限之间被交换，因此随机输入不容易定位问题。调试时可以给每个元素写入带坐标的唯一值，例如 `A[r,k] = 1000r + k`、`B[k,n] = 1000k + n`，然后让各 lane 把自己的寄存器写回调试缓冲区。按上面的坐标表逐项核对，转置错误、上下半区交换和元素打包顺序错误会很明显。
+
+还可以用 one-hot 输入做端到端检查：A 和 B 各只保留一个非零元素，理论上只有一个输出位置会得到非零贡献。这个方法能同时验证加载、fragment 映射和写回。确认正确性后，再用 Nsight Compute 分别观察 global load 合并情况、shared-memory bank conflict 和寄存器占用；这三类指标对应的是三层不同的布局问题。
+
+#### 读寄存器布局时抓住这条主线
+
+先写全 PTX 指令签名，再查该 shape/type 的官方 fragment 表；随后从 `lane_id` 推导每个寄存器的逻辑坐标，最后反推 shared-memory 的加载方式。这样读代码时，`mma` 操作数就不再是一组来历不明的寄存器，而是一张可以逐元素核对的坐标映射表。
+
+
 
 ### **`wgmma`：warp-group level tensor core instructions**
 
-Wgmma 是利用warp group level的tensor cores进行高性能矩阵乘法的关键。以H100为例，tensor core的 bf16 计算能力约为 1000 TFLOPs；而普通的FMA的 bf16 计算能力是 120 TFLOPs，大约只有tensor core的十分之一。因此使用 mma 进行矩阵运算几乎是必选项。
+`wgmma` 是 Hopper 架构上的 warpgroup 级矩阵乘加指令，在 PTX 8.0 中引入，目标架构要求 `sm_90a`。它不只是把 `mma.sync` 的 tile 放大：参与计算的线程从一个 warp 扩展为四个连续 warp，输入可以直接来自 shared memory，计算在 async proxy 中异步推进。理解它时，最好同时抓住四件事：128 个线程如何合作、A/B/D 放在哪里、矩阵描述符描述了什么，以及程序怎样判断数据和结果真正可用。
 
-相比mma，wgmma有几个重要不同：
+#### 一条 WGMMA 由 128 个线程共同完成
 
-<table><colgroup><col/><col/><col/></colgroup><tbody><tr><td>不同点</td><td>mma</td><td>wgmma</td></tr><tr><td>工作单元</td><td>warp</td><td>Warp group，通常4warps</td></tr><tr><td>同步方式</td><td>同步</td><td>异步执行，可以结合TMA实现计算和存储交叉</td></tr><tr><td>计算逻辑</td><td>D=A*B+C</td><td>D=A*B+D。<ul><li>支持A，B转制，取相反数；</li><li>支持D 乘 0 或 1</li></ul></td></tr><tr><td>数据位置</td><td>均在寄存器内</td><td><ul><li>A 寄存器或shared memory</li><li>B shared memory</li><li>D 寄存器</li></ul></td></tr><tr><td>Tile 大小</td><td><code>M = 16</code>, <code>N = 8</code>, and <code>K = 16</code></td><td><code>M = 64</code>, <code>K = 16</code>, and <code>N</code> ranging from 8 to 256 in steps of 8</td></tr><tr><td>是否支持swizzling pattern</td><td>否</td><td>是</td></tr></tbody></table>
+PTX 把四个连续 warp 定义为一个 **warpgroup**，共 128 个线程，而且第一个 warp 的 warp-rank 必须是 4 的倍数。warpgroup 中所有线程必须一致地执行同一条带 `.aligned` 的 WGMMA 指令；如果部分线程绕过指令，或者不同线程执行了不同的 WGMMA，行为是未定义的。
+
+`wgmma.mma_async` 计算下面两种形式之一：
+
+```
+D = A × B + D
+D = A × B          // 关闭旧累加器输入
+```
+
+这里的 `scale-d` 决定旧的 D 是否参与累加。第一次处理 K 方向的 tile 时，可以关闭旧 D，相当于把累加器初始化为 `A × B`；后续 K tile 再让旧 D 参与，逐步得到完整结果。它不是另外读取一个独立的 C 矩阵，输入累加器和输出累加器都写作 D。
+
+| 维度 | `mma.sync` | `wgmma.mma_async` |
+|-|-|-|
+| 协作范围 | 一个 warp，32 个线程 | 一个 warpgroup，4 个连续 warp、128 个线程 |
+| 执行方式 | 同步发射，结果作为指令输出返回 | 在 async proxy 中推进，需要 commit/wait 管理完成状态 |
+| 输入位置 | A、B、C/D 都是寄存器 fragment | A 可在寄存器或 shared memory；B 必须在 shared memory；D 在寄存器 |
+| 典型 FP16/BF16 shape | 常见为 `m16n8k16` | `m64nNk16`，N 从 8 到 256，以 8 递增 |
+| Shared-memory 布局 | 通常先通过 `ldmatrix` 形成寄存器 fragment | 通过 64 位 descriptor 直接描述地址、步长和 swizzle |
+
+WGMMA 的 shape 仍用 `M × N × K` 表示：A 是 `M × K`，B 是 `K × N`，D 是 `M × N`。FP16/BF16 的 K 通常为 16，TF32 的 K 为 8，FP8 和整数类型还有各自的 K 与 shape 约束，因此不能只看 `m64n64` 就判断寄存器数量。
+
+#### `m64n64k16` 到底算了多少数据
+
+以 `wgmma.mma_async.sync.aligned.m64n64k16.f32.bf16.bf16` 为例，一条指令让整个 warpgroup 共同完成：
+
+```
+A[64,16] × B[16,64] + D[64,64] → D[64,64]
+```
+
+| 对象 | 总元素数 | 在 warpgroup 中的分布 |
+|-|-|-|
+| A | `64 × 16 = 1024` 个 BF16 | 若采用寄存器 A，每线程持有 8 个 BF16，打包在 4 个 32 位寄存器中 |
+| B | `16 × 64 = 1024` 个 BF16 | 保存在 shared memory，由 B descriptor 描述 |
+| D | `64 × 64 = 4096` 个 FP32 | 平均每线程持有 32 个 FP32 累加器寄存器 |
+
+这条指令包含 `64 × 64 × 16 = 65,536` 次乘加。若一次乘法和一次加法各按一个浮点操作计算，就是 131,072 FLOPs。D 的 4096 个元素分散在 128 个线程中，所以每线程正好保存 32 个 FP32 结果。和 `mma.sync` 一样，这 32 个值不是随意切出来的一段连续矩阵，而是 PTX 固定规定的 register fragment；写回结果时仍要按官方 fragment 映射恢复矩阵坐标。
+
+真实 GEMM 的 K 往往大于 16。例如 K 为 64 时，可以连续发射四条 `k16` WGMMA，分别消费四对 A/B 子 tile，并累加到同一组 D 寄存器。第一条关闭旧 D，后三条启用旧 D，就完成了一个 `64 × 64 × 64` 的局部乘法。
+
+#### SS 与 RS：A 有两种来源，B 只有一种
+
+WGMMA 常见的两种操作数形式可以记成：
+
+| 形式 | A | B | 适用场景 |
+|-|-|-|-|
+| SS | shared-memory descriptor | shared-memory descriptor | A、B 都由 TMA 等机制搬入 shared memory，减少显式寄存器搬运 |
+| RS | register fragment | shared-memory descriptor | A 已经在寄存器中，或希望在寄存器中生成、变换 A |
+
+B 必须放在 shared memory；A 才能在 SS 和 RS 之间选择。D 始终是分布在 128 个线程上的寄存器 fragment。所谓“WGMMA 直接从 shared memory 计算”，并不等于所有操作数都不占寄存器：至少累加器 D 会占用大量寄存器，RS 形式还会额外占用 A fragment。
+
+shared-memory 操作数不是传入普通指针，而是传入一个保存在寄存器中的 **64 位 matrix descriptor**。descriptor 编码了矩阵起始地址、leading-dimension 字节偏移、stride-dimension 字节偏移、base offset 和 32B/64B/128B swizzle 模式。矩阵起始地址至少要满足 16 字节对齐。descriptor 只描述“怎样解释这块 shared memory”，数据本身仍在 shared memory 中。
+
+<callout emoji="💡">
+descriptor 必须和生产者使用的物理布局完全一致。TMA 若按某种 swizzle 写入 tile，WGMMA descriptor 就要用同一种规则读取；只改 descriptor 而不改写入布局，结果通常不是轻微误差，而是元素被系统性地读错位置。
+</callout>
+
+FP16/BF16 的部分 WGMMA 变体支持对 descriptor 操作数做转置，但这不是所有类型、所有操作数都通用的能力。SS 形式可以带 A、B 的转置限定；RS 形式的 A 已经是固定 register fragment，因此只剩 B 的 descriptor 转置选项。代码中看到 transpose 标记时，要把数据类型和 SS/RS 形式一起核对。
+
+#### 异步的真正含义：发射之后，D 还不能马上读
+
+`wgmma.mma_async` 在 async proxy 中执行。线程发射指令后可以继续执行后续指令，但这时既不能假定 D 已经更新，也不能立刻改写仍被 WGMMA 使用的 A 寄存器或 shared-memory stage。程序需要把若干条 WGMMA 打成一个 group，再显式控制在途 group 的数量。
+
+| 指令 | 它保证什么 | 它不保证什么 |
+|-|-|-|
+| `wgmma.fence.sync.aligned` | 先前对 A fragment 或 D 寄存器的访问，排在后续 WGMMA 对同一寄存器的访问之前 | 不等待 TMA，也不表示 MMA 已完成 |
+| `wgmma.commit_group.sync.aligned` | 把此前尚未提交的 WGMMA 归入一个新的 wgmma-group | 提交不等于完成，D 仍不可读取 |
+| `wgmma.wait_group.sync.aligned N` | 等待到只剩不超过 N 个较新的 group 在途，并保证更早的 group 已完成 | 不负责等待未来才发射的 TMA 数据 |
+
+`wait_group 0` 会等待此前所有已提交 group 完成。只有包含目标 WGMMA 的 group 已被正确等待后，线程才能读取或覆盖对应的 D/A 寄存器。流水化内核也可以用非零 N 保留少量在途 group，在计算延迟和寄存器生命周期之间折中。
+
+同一 shape 的多条 WGMMA 若连续累加到同一组 D，指令之间默认提供累加器次序，不需要在每一条之间插入 `wgmma.fence`。但第一次使用前必须 fence；如果线程在中途用普通寄存器指令读取或改写了同一组 A/D 寄存器，再交给 WGMMA 使用，也必须重新建立顺序。
+
+#### TMA、fence、commit、wait 管的是三条不同的依赖
+
+把 TMA 和 WGMMA 组成流水线时，最重要的是不要把不同同步原语混为一谈：
+
+| 依赖 | 典型机制 | 要回答的问题 |
+|-|-|-|
+| TMA → shared-memory tile | `mbarrier` 的到达、期望字节数和 phase/parity 等待 | 这一 stage 的 A/B 数据是否已经搬完，可以被消费者读取了吗？ |
+| 普通寄存器访问 → WGMMA | `wgmma.fence.sync.aligned` | A fragment 或 D 寄存器的先前访问，是否排在本次 WGMMA 之前？ |
+| WGMMA 发射 → 结果/资源复用 | `wgmma.commit_group` 与 `wgmma.wait_group` | 异步矩阵乘是否完成，D 能否读取，相关输入和 stage 能否安全复用？ |
+
+因此，消费者通过 `mbarrier` 等到 TMA 完成后，通常仍要执行 WGMMA 所要求的寄存器顺序和 group 管理。反过来，执行了 `wgmma.fence` 也不能跳过 TMA 的 barrier 等待。若 shared memory 由普通 generic proxy 的 store 写入，而不是由已正确握手的 TMA 流水线生产，还需要按 PTX 内存模型使用适当的 async-proxy fence，让这些写入对 WGMMA 的 async proxy 可见。
+
+#### 一个双缓冲流水线的简化顺序
+
+<whiteboard token="P85iwqBhUhnhj6bVExilDHzKghf"></whiteboard>
+
+下面是示意流程，省略了 barrier 初始化、descriptor 构造和边界处理。它表达的是依赖关系，不是一段可以直接复制编译的完整 PTX：
+
+```
+// Producer：把下一对 A/B tile 搬入 stage[s]
+TMA_copy_async(A_next, B_next, stage[s], mbar[s]);
+
+// Consumer：等待本 stage 的 TMA 事务完成
+mbarrier_wait(mbar[s], phase[s]);
+
+// 建立 A/D 寄存器访问到 WGMMA 的顺序
+wgmma.fence.sync.aligned;
+
+// 同一输出 tile 沿 K 方向累加若干个 k16 子 tile
+wgmma.mma_async ... D, A_desc_or_regs_0, B_desc_0, scale_d_0;
+wgmma.mma_async ... D, A_desc_or_regs_1, B_desc_1, scale_d_1;
+wgmma.commit_group.sync.aligned;
+
+// 此处可准备后续 descriptor，或让下一 stage 的 TMA 继续推进
+do_independent_work();
+
+// 在读取 D，或复用仍被该 group 使用的资源之前等待
+wgmma.wait_group.sync.aligned 0;
+store_or_transform(D);
+```
+
+双缓冲的核心是让 producer 填充 `stage[next]` 时，consumer 正在使用 `stage[current]`。但 stage 不能只因 WGMMA 已经“发射”就立刻归还给 producer；WGMMA 可能还在异步读取它。实现时要把 stage 的释放点和相应 group 的完成条件绑定起来，否则 TMA 会覆盖尚未消费完的数据。
+
+#### WGMMA 为什么可能更快
+
+- **tile 更大：**128 个线程共同计算固定 M=64 的输出块，能在更大的范围复用 A/B 数据。
+- **少一次显式搬运：**SS 形式直接消费 shared-memory descriptor，不必先把 A/B 都通过 `ldmatrix` 搬成传统 MMA 的寄存器 fragment。
+- **复制和计算可重叠：**TMA 负责异步填充后续 stage，WGMMA 在 async proxy 中处理当前 stage，普通线程还能穿插地址计算和其他独立工作。
+- **group 允许批量管理：**多条 K-slice MMA 可以先连续发射，再以 group 为单位等待，减少逐条同步。
+
+这些优势不是免费的。以刚才的 `m64n64k16` FP32 累加为例，仅 D 就占每线程 32 个 32 位寄存器；更大的 N 会继续增加累加器数量，可能降低 occupancy。shared-memory stage 数量、swizzle、TMA 吞吐、寄存器压力和在途 group 深度必须一起调。WGMMA 的目标不是让单条指令看起来更大，而是让整条 GEMM 主循环形成稳定的搬运—计算流水线。
+
+#### 常见错误与排查方法
+
+| 现象 | 优先检查 |
+|-|-|
+| 结果像是被分块转置或周期性打乱 | descriptor 的 leading/stride offset、swizzle、base offset 是否与 TMA 写入布局一致 |
+| 偶发错误，增加同步后消失 | 是否只做了 `wgmma.fence`，却漏掉 TMA 的 `mbarrier` 等待；stage 是否过早复用 |
+| 读取 D 得到旧值或未定义值 | 对应指令是否已经 commit，读取前是否由正确的 `wait_group` 覆盖 |
+| kernel 挂起或行为不一致 | 四个 warp 是否一致到达带 `.aligned` 的 fence、MMA、commit 和 wait |
+| 数值正确但性能不高 | 寄存器是否导致低 occupancy，TMA 与 WGMMA 是否真正重叠，shared-memory swizzle 是否产生 bank conflict |
+
+正确性验证仍推荐使用带坐标的输入和 one-hot 输入。性能分析时则把问题分成三层：TMA 是否持续供数、WGMMA 是否持续发射、等待点是否让流水线频繁排空。只看 Tensor Core 利用率，很难判断瓶颈究竟出在搬运、descriptor 布局还是 group 深度。

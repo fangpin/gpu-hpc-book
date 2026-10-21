@@ -7,6 +7,8 @@ local: true
 ---
 ```
 
+<whiteboard token="CUoUwGyfthiG16bi2KKl3ziRgkh"></whiteboard>
+
 ![blackwell 架构](../assets/images/03-gpu/image-01.jpg)
 
 ## GPU执行模型
@@ -26,7 +28,7 @@ local: true
 |-|-|-|-|
 | GMEM (global memory) | GPU 整个设备 | 持久化存储 | 容量大，所有sm共享 |
 | SMEM （shared memory） | Per CTA | 分块缓存，CTA间thread 贡献数据 | 低延迟  <br/>228 KB/SM on B200 |
-| TMEM （Tensor memory） | Per CTA | MMA 累加器 | Blackwell 引入，未支持更大tile的MMA，将MMA结果存储到 TMEM中，从而用来减少寄存器压力 |
+| TMEM （Tensor memory） | Per CTA | MMA 累加器 | Blackwell 引入，为支持更大tile的MMA，将MMA结果存储到 TMEM中，从而用来减少寄存器压力 |
 | Register file | Per thread | Thread 内部私用 | 快速，临时存储 |
 | Distributed SMEM | Per cluster | thread间加速移动数据，跳过写回GMEM |  |
 
@@ -72,7 +74,7 @@ NVCC 首先调用预处理器，扫描源代码。它查找特定的 CUDA 关键
 分离出的 Device 代码由 NVIDIA 自己的编译器组件（主要是 `cicc` 和 `ptxas`）处理：
 
 1. **生成 PTX (Parallel Thread Execution)**: 源代码首先被编译成 PTX。PTX 是一种**虚拟汇编语言**，类似于 Java 的字节码或 LLVM IR。它是通用的，不绑定特定的 GPU 架构。
-2. **生成 SASS (Streaming Assembler)**: 如果指定了具体的 GPU 架构（如 `-arch=sm_80`），`ptxas` 会将 PTX 进一步编译成 SASS。SASS 是真正的**二进制机器码**，只能在特定的 GPU 硬件上运行。
+2. **生成 SASS (Streaming Assembler)**: 如果指定了具体的 GPU 架构（如 `-arch=sm_80`），`ptxas` 会将 PTX 进一步编译成 SASS。SASS 是真正的**二进制机器码**，只能在特定的 GPU 硬件架构上运行。
 
 ### 第三步：Host 编译 (CPU 侧)
 

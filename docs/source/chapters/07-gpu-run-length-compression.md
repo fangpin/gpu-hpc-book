@@ -7,7 +7,7 @@ local: true
 ---
 ```
 
-之前的例子中，我们对GPU的HBM的访问模式是静态可确定的，比如访问多少数据，访问的频率等在代码编译阶段就已经确定。
+之前的例子中，我们对GPU的HBM的访问模式是**静态可确定**的，比如访问多少数据，访问的频率、模式等在代码编译阶段就已经确定。
 
 现实中另外一类常见的case是，GPU对HBM的访问模式需要在runtime时，根据输入的计算结果，动态决定，也就是GPU的动态调度问题。
 
@@ -15,15 +15,38 @@ local: true
 
 ## 并行扫描问题
 
-RLE 依赖于前缀和的计算，前缀和问题可以归纳为扫描问题：
+<whiteboard token="DXFPwVSgThjeTXbBBF0l5ovcgAh"></whiteboard>
 
-- 从前往后扫描数据，形成最终的累计数据。比如前缀和，最大值等。
+RLE 需要先判断每个位置是否为新 run 的起点，再把这些起点压缩写入连续的输出位置。每个线程可以独立完成判断，但它只有知道“前面已经出现了多少个起点”，才能确定自己的输出下标。这个从标记到位置的转换，就是 scan。
 
-GPU如何实现高效的扫描呢？
+**Scan 把前缀依赖改写成树形归并**
 
-- 整体使用分治思想
-- 独立完成每个block的scan，再将每个 block 中元素加上上一个block最后元素位置的前缀和
-- 每个block scan通过实现warp scan后，再将每个warp 中的元素加上上一个warp的最后元素位置的前缀和进行实现 
+给定输入 `x[0..n-1]`、二元运算 `⊕` 和单位元 `e`，scan 有两种常见定义：
+
+| 类型 | 定义 | 输入 [3, 1, 7, 0] |
+|-|-|-|
+| Inclusive scan | `y[i] = x[0] ⊕ ... ⊕ x[i]` | `[3, 4, 11, 11]` |
+| Exclusive scan | `y[i] = e ⊕ x[0] ⊕ ... ⊕ x[i-1]` | `[0, 3, 4, 11]` |
+
+本节代码实现的是 **inclusive scan**。RLE 的起点标记是 0/1 数组，因此 `scanned_flags[i]` 表示从位置 0 到位置 i 一共出现了多少个 run。
+
+scan 能够并行化，依赖的是运算符的**结合律**：
+
+```
+(a ⊕ b) ⊕ c = a ⊕ (b ⊕ c)
+```
+
+结合律允许算法先并行合并相邻片段，再逐层合并片段结果。运算不必满足交换律，因为 `Op::combine(left, right)` 始终保留输入顺序。加法、最大值和逻辑或都可以作为 scan 运算；减法不满足结合律，不能直接套用这套算法。
+
+**GPU 用三级层次处理不同范围的数据依赖**
+
+| 范围 | 通信方式 | 本节实现 | 同步边界 |
+|-|-|-|-|
+| Warp 内 | 寄存器之间交换 | `__shfl_up_sync` | warp 级原语 |
+| Block 内 | 只把每个 warp 的总和放入 shared memory | 两次 warp scan | `__syncthreads()` |
+| Grid 内 | 把每个 block 的总和写入 global memory | 递归 scan + fixup | 同一 CUDA stream 中的 kernel 顺序 |
+
+这套层次化结构把一个长度为 n 的问题不断缩小：线程先在 warp 内合并，warp 再在 block 内合并，最后只对数量很少的 `block_sums` 递归执行同样的过程。固定 warp 和 block 大小时，总工作量随 n 线性增长；每一级的依赖深度则是对数级。
 
 ### Warp scan
 
@@ -85,7 +108,74 @@ template <typename Op> __device__ typename Op::Data warp_scan(typename Op::Data 
 }
 ```
 
-这里的 `shuffle_up_any` 也值得一提。因为 `__shfl_up_sync` 天然只擅长处理标量寄存器，代码里通过 `pack_bits` 和 `unpack_bits` 把任意不超过 8 字节、且 trivially copyable 的类型打包成 `int` 或 `long long`，从而支持 `uint32_t` 之外的 `DebugRange`。这正好对应了课程网页里“scan 应该是泛型”的要求。
+#### pack_bits 复制位模式，不做数值转换
+
+`pack_bits` 和 `unpack_bits` 为 shuffle 准备传输载体。它们使用 `std::memcpy` 复制对象表示，不执行 `static_cast`，因此浮点数或小结构体的每一位都能原样保留，也不会触发违反 strict aliasing 的类型重解释。
+
+| 约束 | 作用 |
+|-|-|
+| `sizeof(Word) >= sizeof(T)` | 载体必须容纳 T 的全部字节 |
+| `std::is_trivially_copyable_v<T>` | 保证对象表示可以通过 `memcpy` 复制和恢复 |
+
+`unpack_bits` 把相同数量的字节复制回 T，完成位模式的往返。
+
+#### shuffle_up_any 把小对象接入 warp shuffle
+
+`shuffle_up_any` 把不超过 8 字节的 trivially copyable 类型分成两条路径：
+
+- `sizeof(T) <= 4`：打包成 32 位 `int`。
+- `4 < sizeof(T) <= 8`：打包成 64 位 `long long`。
+
+`if constexpr` 在编译期选择分支，没有运行时判断。`__shfl_up_sync(mask, bits, delta)` 让当前 lane 读取物理编号为 `lane-delta` 的寄存器值，数据直接经过 warp shuffle 网络传递，不经过 shared memory。
+
+这个封装 shuffle 的是对象位模式，因此不仅能处理 `uint32_t`，也能处理大小不超过 8 字节的小型结构体。它不支持更大的类型；更大对象需要拆成多个 32 位或 64 位 word，分别执行 shuffle。
+
+#### 五轮倍增构造 inclusive scan
+
+`warp_scan` 是一个 warp 内的 inclusive scan。假设 lane `j` 的输入是 `x[j]`，返回值为：
+
+```c++
+lane 0: x[0]
+lane 1: combine(x[0], x[1])
+lane 2: combine(combine(x[0], x[1]), x[2])
+...
+lane 31: combine(x[0], ..., x[31])
+```
+
+循环中的距离依次为 1、2、4、8、16。每轮结束后，一个 lane 已知的连续前缀长度翻倍：
+
+| `i` | 当前 lane 最多合并的连续元素数 |
+|-|-|
+| 1 | 2 |
+| 2 | 4 |
+| 4 | 8 |
+| 8 | 16 |
+| 16 | 32 |
+
+当 `lane >= i` 时，当前 lane 才拥有合法的左侧来源，于是执行 `Op::combine(other, v)`。参数顺序很重要：`other` 是左侧较早出现的前缀，`v` 是右侧当前前缀。这样即使 `combine` 不满足交换律，也能保持从 lane 0 到当前 lane 的顺序。算法要求 `combine` 满足结合律，否则并行分组可能改变结果。
+
+`Op` 需要提供 `Data` 类型和 `combine(left, right)`。
+
+#### 八个 lane 的求和示例
+
+用前 8 个 lane 演示加法 scan，初始输入为 `[1,2,3,4,5,6,7,8]`：
+
+```text
+初始：    [1, 2, 3, 4, 5, 6, 7, 8]
+delta=1：[1, 3, 5, 7, 9, 11, 13, 15]
+delta=2：[1, 3, 6, 10, 14, 18, 22, 26]
+delta=4：[1, 3, 6, 10, 15, 21, 28, 36]
+```
+
+每个 lane 最终得到包含自身的前缀和，因此这是 inclusive scan。最后一个有效 lane 的结果同时也是整个 warp 的 reduction。若要得到 exclusive scan，可以把 inclusive 结果再向上移动一个 lane，并让 lane 0 返回单位元。
+
+#### 使用前提和代码边界
+
+- `mask = 0xffffffff` 要求 32 个 lane 都处于活动且收敛的状态，并以相同 mask 执行该 intrinsic。部分 warp 或分支内调用需要构造正确的参与者 mask；仅替换成 `__activemask()` 也不会自动把稀疏 lane 压缩成连续序列。
+- `threadIdx.x & (WARP_SIZE-1)` 只在一维 block，或 `blockDim.x` 是 warp 大小整数倍时，才能等价于真实 lane ID。多维 block 的稳妥写法是先计算线性 thread ID，再对 32 取模。
+- 循环假设 `WARP_SIZE` 是 2 的幂；在 NVIDIA CUDA 上通常取 32。当前文件中没有给出它的定义，需要由外部头文件或常量提供。
+- 低于 `delta` 的 lane 会忽略 shuffle 返回值，因此不需要先把 `other` 设成 `Op::identity()`。可以直接写成 `Data other = shuffle_up_any(mask, v, i);`。
+- 算法只在 warp 内交换寄存器，不需要 shared memory，也不需要 `__syncthreads()`。跨 warp 的 block scan 仍需额外的 warp totals、共享内存和 block 级同步。
 
 
 
@@ -136,7 +226,54 @@ block_scan(typename Op::Data v, typename Op::Data *shared_warp_sums) {
 }
 ```
 
+#### 两个 warp 如何拼成一个 block scan
 
+为了缩短例子，假设一个 block 有 8 个线程，每个 warp 只有 4 个 lane。输入为：
+
+```
+warp 0: [2, 1, 3, 4]
+warp 1: [5, 2, 1, 6]
+```
+
+| 阶段 | warp 0 | warp 1 | shared_warp_sums |
+|-|-|-|-|
+| 各自做 local scan | `[2, 3, 6, 10]` | `[5, 7, 8, 14]` | `[10, 14]` |
+| warp 0 扫描各 warp 总和 | 不变 | 不变 | `[10, 24]` |
+| 加回前面 warp 的总和 | `[2, 3, 6, 10]` | `[15, 17, 18, 24]` | `[10, 24]` |
+
+warp 1 需要的前缀是 `scanned_warp_sums[0] = 10`，也就是它前面所有 warp 的总和。warp 0 前面没有数据，因此不做修正。最终结果为 `[2, 3, 6, 10, 15, 17, 18, 24]`。
+
+这一实现只在 shared memory 中保存每个 warp 的一个总和。一个 1024 线程 block 有 32 个 warp，因此第二次 scan 最多处理 32 个值，正好由 warp 0 一次完成。两次 `__syncthreads()` 分别保证：
+
+- warp 0 开始读取前，所有 warp 都已经写出自己的总和；
+- 其他 warp 读取前，warp 0 已经写完 `scanned_warp_sums`。
+
+数组最后一个 block 可能只有部分有效元素。代码仍启动完整的 `BLOCK_SIZE` 个线程，让越界线程贡献单位元。只要单位元满足 `e ⊕ x = x`，最后一个线程得到的值仍是该 block 所有有效元素的总和。
+
+#### warp_id-1 把 inclusive 总和变成跨 warp 偏移
+
+第二次 `warp_scan` 结束后，`scanned_warp_sums[q]` 表示从 warp 0 到 warp q 的 inclusive 总和。warp p 的局部结果已经包含本 warp 的数据，因此只需要补上它之前所有 warp 的总和：
+
+```text
+warp 0 的偏移：identity
+warp 1 的偏移：scanned_warp_sums[0]
+warp 2 的偏移：scanned_warp_sums[1]
+...
+warp p 的偏移：scanned_warp_sums[p-1]
+```
+
+这就是第 82 行读取 `warp_id-1` 的原因。warp 0 前面没有其他 warp，所以通过 `if (warp_id > 0)` 保留原来的局部前缀。`Op::combine(prefix, v)` 中，跨 warp 前缀放在左边，本 warp 的局部前缀放在右边；对于不满足交换律、但满足结合律的运算，这个顺序仍能保持原始线程顺序。
+
+#### 共享数组被原地改写为 warp 前缀
+
+`scaned_warp_sums` 只是 `shared_warp_sums` 的别名，没有申请第二块 shared memory。数据在同一个数组中经历两个状态：
+
+| 阶段 | 数组含义 |
+|-|-|
+| 第一次同步前 | 每个 warp 的最后一个 lane 写入本 warp 总和 |
+| warp 0 执行第二次 scan 后 | 数组被覆盖为各 warp 总和的 inclusive 前缀 |
+
+这种原地复用是安全的，因为第一次 `__syncthreads()` 之后，warp 0 先把需要的 warp totals 读入寄存器，再执行 warp scan 和写回。第二次 `__syncthreads()` 保证其他 warp 读取时，覆盖后的前缀已经可见。变量名中的 `scaned` 是拼写问题，可以改为 `scanned_warp_sums`，不影响执行结果。
 
 ### grid 级 scan：递归扫描 block sums
 
@@ -197,7 +334,79 @@ fixup_kernel(typename Op::Data *output, typename Op::Data *scanned_block_sums, s
 }
 ```
 
+#### 跨 block 拼接仍然使用同一个模式
 
+沿用上面的 8 个输入，假设每个 block 处理 4 个元素：
+
+| 阶段 | block 0 | block 1 |
+|-|-|-|
+| 局部 scan | `[2, 3, 6, 10]` | `[5, 7, 8, 14]` |
+| 写出 block 总和 | `10` | `14` |
+| 扫描 `block_sums` | `10` | `24` |
+| fixup | 不加前缀 | 每个元素加 `10` |
+| 全局结果 | `[2, 3, 6, 10]` | `[15, 17, 18, 24]` |
+
+如果 `block_sums` 仍然超过一个 block 能处理的范围，`launch_scan_recursive` 会再次生成更高一层的 block sums。输入规模每递归一层大约缩小为原来的 `1 / BLOCK_SIZE`，直到只剩一个 block。
+
+CUDA 没有供普通 kernel 使用的隐式 grid-wide barrier，因此这段实现把全局同步拆成多次 kernel launch。同一 stream 中，后提交的 kernel 会在前一个 kernel 完成后再观察其结果。实际提交顺序为：
+
+```
+scan level 0 local blocks
+  → scan level 1 block_sums
+    → scan level 2 block_sums
+    → fixup level 1
+  → fixup level 0
+```
+
+递归发生在 host 端，它负责依次提交 kernel，并不表示 GPU 线程在 kernel 内递归。若这些 kernel 被改到不同 stream，需要用 event 或其他同步方式显式建立依赖。
+
+#### 局部扫描同时产出 output 和 block_sums
+
+`blocks_scan_no_fixup` 让一个线程对应一个输入元素，`tid = blockIdx.x * blockDim.x + threadIdx.x`。每个 block 调用前一节的 `block_scan`，因此此时得到的 `v` 只包含当前 block 内的 inclusive prefix，还没有计入更早的 block。
+
+这个 kernel 写出两类结果：
+
+| 输出 | 写入者 | 含义 |
+|-|-|-|
+| `output[tid]` | 每个有效线程 | 当前 block 内的局部 inclusive prefix |
+| `block_sums[blockIdx.x]` | block 的最后一个线程 | 整个 block 的 reduction |
+
+`block_sums != nullptr` 让第二类输出成为可选项。当上层不再需要继续递归时，可以传入空指针，避免写出 block totals。函数名中的 `no_fixup` 表示第一类输出仍是局部前缀，必须等更高层的 block sums 被扫描后再修正。
+
+#### 尾块用单位元保持完整同步结构
+
+最后一个 block 往往装不满。代码没有让越界线程提前返回，而是让它们参与完整的 `block_scan`：
+
+```c++
+Data v = tid < n ? input[tid] : Op::identity();
+```
+
+这样所有线程仍会到达 `block_scan` 内的两次 `__syncthreads()`，不会产生 barrier divergence。只要 `identity` 满足 `combine(x, identity) = x`，位于有效数据之后的填充线程就不会改变 block 总和。越界线程不写 `output`，但最后一个物理线程仍可把有效元素的总和写进 `block_sums`。
+
+#### fixup 把局部前缀改成全局前缀
+
+递归扫描完成后，`scanned_block_sums[b]` 表示 block 0 到 block b 的 inclusive 总和。block b 的每个局部结果需要加上它之前所有 block 的总和，因此读取：
+
+```c++
+Data prefix = scanned_block_sums[blockIdx.x - 1];
+output[tid] = Op::combine(prefix, output[tid]);
+```
+
+block 0 前面没有数据，原来的局部前缀已经等于全局前缀，所以直接返回。越界线程也可以提前返回，因为 `fixup_kernel` 中没有 block barrier。这里的 `scanned_block_sums` 只读不写，参数可以声明为 `const Data *`。
+
+fixup 必须使用与局部扫描相同的 block 切分，使 `blockIdx.x` 仍对应同一段输入。`Op::combine(prefix, output[tid])` 的顺序也必须保持不变，才能支持满足结合律但不满足交换律的操作。
+
+#### 动态 shared memory 要同时满足容量与对齐
+
+`sh_mem_raw` 是启动 kernel 时传入的动态 shared memory，随后被解释成 `Data *`，供 `block_scan` 保存 warp totals。结合当前 `block_scan` 的写法，容量至少应为：
+
+```text
+WARP_SIZE * sizeof(Data)
+```
+
+原因是 warp 0 的全部 32 个 lane 都会写 `shared_warp_sums[lane]`。如果前一节按实际 warp 数量限制写回，容量才可以缩小为 `NUM_WARPS_PER_BLOCK * sizeof(Data)`。
+
+将 `unsigned char *` 转为 `Data *` 还要求起始地址满足 `alignof(Data)`。为了让约束明确，可以直接声明动态共享数组为 `Data` 类型，或为原始字节数组指定足够的 alignment。否则，对于对齐要求较高的自定义 `Data`，单靠 `reinterpret_cast` 不能保证访问合法。
 
 ### 整体scan 流程
 
@@ -270,22 +479,111 @@ typename Op::Data *launch_scan(
 
 ```
 
+#### RLE 例子：scan 怎样把动态输出变成确定下标
 
+输入字符串为 `AAABBCCCCA`。每个线程只比较当前位置与前一个位置，得到 run 起点标记：
+
+```
+index:          0 1 2 3 4 5 6 7 8 9
+raw:            A A A B B C C C C A
+flags:          1 0 0 1 0 1 0 0 0 1
+inclusive scan: 1 1 1 2 2 3 3 3 3 4
+```
+
+只有 `flags[i] == 1` 的线程参与写出。它的输出下标为 `scanned_flags[i] - 1`：
+
+| 输入位置 | 字符 | scan 值 | 输出下标 |
+|-|-|-|-|
+| 0 | A | 1 | 0 |
+| 3 | B | 2 | 1 |
+| 5 | C | 3 | 2 |
+| 9 | A | 4 | 3 |
+
+于是 `compressed_data = [A, B, C, A]`，`run_starts = [0, 3, 5, 9]`。相邻起点相减得到 `compressed_lengths = [3, 2, 4, 1]`。最后一个 scan 值 4 同时就是 run 的数量。
+
+#### 这套实现为什么高效
+
+| 设计 | 减少的成本 |
+|-|-|
+| Warp 中用 shuffle | 避免为每一轮前缀传播读写 shared memory |
+| Block 中只保存 warp totals | shared memory 用量从每线程一个元素缩小到每 warp 一个元素 |
+| 只递归扫描 block totals | 更高层输入迅速缩小，绝大多数数据只参与底层扫描 |
+| 单独执行 fixup | 用规则、合并的全局内存访问把 block 前缀批量加回 |
+| 尾部线程使用单位元 | 主循环无需为最后一个 block 维护另一套算法 |
+
+对固定的 warp 和 block 大小，算术工作量为 O(n)，额外的 block summaries 形成几何递减序列。当前递归多 kernel 实现便于理解和验证，代价是额外的 kernel launch、`block_sums` 流量以及一次 fixup 读写。
+
+#### 递归只处理逐层缩小的 block_sums
+
+`launch_scan_recursive` 是 host 函数，不是 GPU kernel。它每一层先计算 `num_blocks = ceil(n / BLOCK_SIZE)`。当 `num_blocks == 1` 时，一个 block 已经能扫描完整输入，直接启动一次 `blocks_scan_no_fixup`，并把 `block_sums` 设为空指针；此时局部前缀就是全局前缀，不需要继续递归，也不需要 fixup。
+
+当输入需要多个 block 时，本层先生成长度为 `num_blocks` 的 `block_sums`，再递归扫描这段更短的数据。递归规模满足：
+
+```text
+n_next = ceil(n_current / BLOCK_SIZE)
+```
+
+因此递归深度约为 `log_BLOCK_SIZE(n)`。对于当前 `BLOCK_SIZE=1024`，每深入一层，元素数量约缩小 1024 倍。
+
+#### workspace_offset 让各递归层互不覆盖
+
+当前层从 `workspace + workspace_offset` 依次切出两段 GPU 缓冲区：
+
+| 缓冲区 | 元素数 | 用途 |
+|-|-|-|
+| `block_sums` | `num_blocks` | 保存当前层每个 block 的 reduction |
+| `scanned_block_sums` | `num_blocks` | 保存递归扫描后的 block 前缀 |
+
+两段空间分配完成后，更新后的 `workspace_offset` 被传给下一层递归，所以更高层只会从后续地址继续分配。递归返回时，本层的 `scanned_block_sums` 仍然有效，可供 `fixup_kernel` 使用。
+
+代码使用 `(offset + 256) & ~255` 做 256 字节对齐。它能得到对齐地址，但当 offset 原本已经对齐时，仍会额外跳过 256 字节。标准的 align-up 写法是 `(offset + 255) & ~size_t{255}`。两种写法都可以工作，但 workspace 大小计算必须与实际切片公式完全一致，否则可能少分配或浪费空间。
+
+#### 递归向下提交 scan，返回时向上提交 fixup
+
+多 block 分支的 host 执行顺序是：
+
+```text
+提交当前层 blocks_scan_no_fixup
+  → 递归提交下一层 scan
+    → 下一层继续递归并提交自己的 fixup
+  → 提交当前层 fixup_kernel
+```
+
+kernel launch 对 host 是异步的，所以 C++ 递归返回不代表 GPU 已经算完。正确性依赖这些 kernel 被提交到同一 stream：同一 stream 保证执行顺序，当前层 fixup 会在递归层生成 `scanned_block_sums` 后执行。如果以后给接口增加 stream 参数，所有递归 launch 必须沿用同一个 stream；跨 stream 时需要 event 建立依赖。
+
+`cudaGetLastError()` 只检查 launch 配置等即时错误，不会等待 kernel 完成，也不能在这里发现大多数异步执行错误。调用链末端仍需要通过同步点或后续 CUDA API 检查运行期错误。递归调用后的那次 `cudaGetLastError()` 通常也是冗余的，因为递归内部已经逐次检查自己的 launch。
+
+#### launch_scan 把 workspace 首段作为最终输出
+
+`launch_scan` 不单独分配输出数组，而是把调用方提供的 GPU workspace 起始地址解释成 `Data *`：
+
+```c++
+Data *output = reinterpret_cast<Data *>(workspace);
+size_t workspace_offset = n * sizeof(Data);
+```
+
+因此 workspace 的布局从长度为 n 的最终输出开始，递归临时区紧随其后。函数返回的指针仍指向这块 workspace，生命周期由调用方管理。调用方必须保证 workspace 位于 GPU 可访问内存、起始地址满足 `alignof(Data)`，并且总容量覆盖输出区、每层两段 block sums 以及所有对齐空隙。`n == 0` 时不会启动 kernel，但返回值仍是 workspace 的起始地址，调用方不应解引用任何元素。
+
+#### 当前启动代码还有三个可收紧之处
+
+- `num_blocks` 使用 `int`，而 `n` 是 `size_t`。超大输入可能在窄化转换时溢出；可以使用 `size_t` 计算，并在传给 grid 维度前检查设备限制。
+- 当前 `block_scan` 只使用一段 warp totals 数组，但 `shared_bytes` 按 `2 * NUM_WARPS_PER_BLOCK` 个 `Data` 计算。对于当前 32 个 warp 的 block，它会保留 64 个元素，容量安全但有一半未使用。
+- `fixup_kernel` 没有动态 shared memory，却仍以 `<<<num_blocks, BLOCK_SIZE, shared_bytes>>>` 启动。这段共享内存不会被访问，可以把第三个 launch 参数去掉，避免无意义的资源预留。
 
 ### workspace size
 
+#### Workspace 对应递归树上的每一层
 
+scan 自身首先需要长度为 n 的输出区。随后，每个递归层级都需要两段临时空间：一段保存该层的 `block_sums`，另一段保存扫描后的 `scanned_block_sums`。忽略对齐时，空间可以写成：
 
-实际需要使用 scratch buffer，来存储中间结果这里需要两个 buffer：
+```
+n × sizeof(Data)
++ Σlevel 2 × ceil(n_level / BLOCK_SIZE) × sizeof(Data)
+```
 
-1. `block_sums`
-2. `scanned_block_sums`
+实际代码在每次分配后把 offset 向上对齐到 256 字节，所以精确计算器也应逐段执行相同的对齐。示例中的 `total += 4096` 是为多层对齐预留的安全余量，并不是算法本身固定需要 4096 字节。
 
-每一层递归都需要存 block sums。为了简单，可以按 `2 * num_blocks * sizeof(Data)` 分配。
-
-
-
-但递归扫描 block sums 时也需要 workspace。最安全的做法是把每一层需要的 block sums 加起来。
+RLE 还会在 scan workspace 之前分配 `flags`、`scanned_flags` 和 `run_starts`。调用方必须按与执行路径相同的顺序和对齐规则计算大小，否则小规模测试可能正常，大规模输入却会让后一级缓冲区覆盖前一级结果。
 
 ```c++
 template <typename Op> size_t get_workspace_size(size_t n) {
@@ -301,6 +599,19 @@ template <typename Op> size_t get_workspace_size(size_t n) {
     return total;
 }
 ```
+
+#### 正确性边界和工程选择
+
+| 检查项 | 当前代码的要求 |
+|-|-|
+| 运算符 | `combine` 满足结合律，并提供左右都成立的单位元 |
+| 浮点加法 | 数学上可结合，但有限精度下改变归并顺序会改变末位舍入，结果可能与 CPU 串行累加略有差异 |
+| Warp 参与者 | 所有掩码中标出的 lane 必须执行同一 warp 原语；当前全掩码依赖完整 warp 参与 |
+| Block 形状 | 当前实现按 `BLOCK_SIZE = 1024` 和 32 个 warp 编译、分配空间并启动；改动 block 大小时必须同步重算 warp 数，并让不存在的 warp total 使用单位元 |
+| 尾部处理 | 越界线程必须输入单位元，写回时仍要检查 `tid < n` |
+| Kernel 顺序 | local scan、递归 scan 和 fixup 位于同一 stream，或由 event 显式同步 |
+
+生产代码通常优先使用 CUB 的 `cub::DeviceScan` 或 Thrust 的 scan。CUB 的 device-wide scan 采用 decoupled look-back，把局部扫描和跨分区前缀传播重叠起来，可以减少多轮 kernel 和全局内存流量。本节的递归实现更适合学习层次化 scan、定制小型数据结构，或者验证特殊 `Op`；追求通用性能时，应先用成熟库建立基线。
 
 
 

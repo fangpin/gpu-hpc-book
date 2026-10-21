@@ -59,6 +59,8 @@ delta = (row_max - candidate_max) * scale_log2
 
 ## 一个 K/V Block 的数据流
 
+<whiteboard token="SRfLwlVsGh9RPobaa4clQ0vqggb"></whiteboard>
+
 把算法放到 Blackwell 的硬件路径上，FA4 的一个 K/V block 可以拆成下面几条 tile 数据流：
 
 ```text

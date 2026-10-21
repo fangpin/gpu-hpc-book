@@ -66,7 +66,7 @@ template <typename Scene> void wave_cpu_step(float t, float *u0, float const *u1
 与常规 CPU 不同，GPU 的 **L1 缓存并不保证跨 SM 的一致性（Not Coherent）**。因此，绝大多数常规的内存读写实际上会**绕过（Bypass）** L1 缓存。L1 在 GPU 中主要用于以下四个场景：
 
 - 缓存 CUDA 的线程局部（Thread-local）内存（如 C 语言堆栈）。
-- 缓存**只读（Read-only）**的全局内存（可以通过给指针加 `const restrict` 或使用 `__ldg` 内联指令来触发）。
+- **缓存只读（Read-only）的全局内存**（可以通过给指针加 **`const restrict`** 或使用 **`__ldg`** 内联指令来触发）。
 - 缓存编译器认为未来可能发生变化但仍值得缓存的数据。
 - **作为软件管理的 Scratchpad（即 CUDA 中的 Shared Memory）**：这是我们需要在代码中显式分配和管理的一块超高速存储。
 
@@ -180,9 +180,9 @@ __attribute__((optimize("O0"))) __global__ void global_mem_latency(
 
 ```c++
 ./mem-latency 
-global_mem_latency latency =    475 cycles
-l2_mem_latency latency =        6 cycles
-l1_mem_latency latency =        6 cycles
+global_mem_latency latency =    500 cycles
+l2_mem_latency latency =        200 cycles
+l1_mem_latency latency =        30 cycles
 ```
 
 ## 内存访问合并
@@ -195,6 +195,8 @@ l1_mem_latency latency =        6 cycles
 
 
 ## Bank conflict
+
+<whiteboard token="ShUCwDkrlhvA0KbsIsjl74IPgTb"></whiteboard>
 
 在 GPU 的 **Shared Memory（共享内存）** 优化中，**Bank Conflict（存储体冲突）** 是最常见的性能杀手之一。
 
@@ -322,7 +324,7 @@ std::pair<float *, float *> wave_gpu_naive(
 - 为了防范越界访问，Shared Memory 的大小通常需要比计算网格稍大一圈（`blockDim + 2*halo`）。
 - 在 Block 内的加载阶段和计算阶段之间，必须使用 `__syncthreads()` 进行 Block 级别的屏障同步，以防数据还没加载完就开始计算。
 
-```java
+```c++
 
 template <typename Scene>
 __global__ void wave_gpu_shmem_multistep(
@@ -518,7 +520,7 @@ std::pair<float *, float *> wave_gpu_shmem(
 
   - 使用 `precompute_damping` 核函数提前计算阻尼系数。由于 `Scene::damping(gx, gy)` 可能涉及复杂的数学运算（如 `exp`, `sqrt`），且阻尼系数在模拟过程中是不变的，将其预计算并存储在显存中（并在主 Kernel 中读入 Shared Memory），可以显著减少主循环内的计算压力。
 
-### 分析与对比
+### 性能分析与对比
 
 ```bash
 Small scale tests (on scene 'DoubleSlitSmallScale'):
