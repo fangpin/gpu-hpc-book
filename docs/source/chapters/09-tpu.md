@@ -17,7 +17,7 @@ TPU 通过片间互联（ICI，Inter-Chip Interconnect）把多颗芯片连成 2
 
 TPU 的内存层级比 GPU 简单得多。每个 core 有一块 64 MiB 的高带宽片上 SRAM scratchpad，叫 VMEM（Vector Memory）。整颗芯片还有 95 GB 的 HBM2e。和 H100 单 SM 最大 228 KB 的 shared memory 相比，64 MiB 的 VMEM 大了两个数量级；同时 TPU 没有 GPU 那套靠多 warp 切换和复杂硬件缓存层次隐藏延迟的机制，更接近「HBM + 大容量片上 VMEM」的两级结构。写 TPU kernel 时，核心问题只有三个：哪些权重和激活可以常驻 VMEM，哪些分块要走 HBM DMA 或跨芯片 RDMA，以及怎么排布维度才能对齐 `(8, 128)` tile 并跑满 ICI 带宽。
 
-<whiteboard token="Ps6OwOZKPhc04BbeljDlqYROgbd"></whiteboard>
+![飞书画板](../assets/images/09-tpu/whiteboard-01.jpg)
 
 TPU vs GPU：
 
@@ -80,7 +80,7 @@ Pallas 是 JAX 的底层 kernel 编程接口。它贴近硬件，但采用基于
 
 RDMA 由独立的 DMA 引擎异步执行。`start()` 只是把搬运请求提交给硬件，指令返回时数据还没发完，远端也没收完。为了判断源缓冲区什么时候能安全改写、目标缓冲区什么时候能安全读取，一次远程拷贝会同时绑定两个信号量：发送方本地的 `send_sem` 和接收方本地的 `recv_sem`。
 
-<whiteboard token="Si3RwQlxNhlZZubL7fxlELmRgHe"></whiteboard>
+![飞书画板](../assets/images/09-tpu/whiteboard-02.jpg)
 
 | 操作 | 作用在哪一端 | 硬件做了什么 | 返回后保证什么 |
 |-|-|-|-|
@@ -225,7 +225,7 @@ kernel 的顺序是 `start → wait_send → wait_recv`。所有设备运行同�
 
 把这两步首尾相接，先做一次 `reduce-scatter` 再做一次 `all-gather`，得到的就是完整的 **all-reduce**，而且通信量正好等于 ring all-reduce 的两阶段开销。写代码时，难点在于怎么在单向 ring（`0 -> 1 -> 2 -> 3 -> 0`）上安排每一轮发送和接收的分片下标，以及怎么管好 VMEM 缓冲区的读写生命周期。
 
-<whiteboard token="QPtpwhmqwhMUnQbfZpJl3cPXgHh"></whiteboard>
+![飞书画板](../assets/images/09-tpu/whiteboard-03.jpg)
 
 <callout emoji="🔤">
 **形状符号：**`N` 是参与 collective 的设备数；`S` 是一个分片沿第 0 维的长度；`D1`、`D2` 是不参与本次切分的其余维度。它们描述的是张量形状，不是字节数。
@@ -432,7 +432,7 @@ TPU v5p 的 `bfloat16` 矩阵乘峰值算力整芯片约为 459 TFLOP/s，单 co
 
 对比这两个数字可以看出：**在理论下界上，计算耗时（9.34 us）大于通信耗时（4.27 us），两者比值超过 2:1。** 如果先做完通信再算矩阵乘，单次原语的下界是 `9.34 + 4.27 = 13.61 微秒`；如果把 3 步 ring 通信拆开、藏进矩阵乘的分块计算里，理想总耗时下界就能逼近纯矩阵乘的 `9.34 微秒`。优化重点在于不让通信单独占住关键路径。
 
-<whiteboard token="EEu1wIgaxh6zZmbmUHWlLGSLgjf"></whiteboard>
+![飞书画板](../assets/images/09-tpu/whiteboard-04.jpg)
 
 | 操作 | 理论计算下界 | 理论通信下界 | 串行下界 vs 理想重叠下界 | 结论 |
 |-|-|-|-|-|

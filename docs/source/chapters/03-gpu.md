@@ -7,7 +7,7 @@ local: true
 ---
 ```
 
-<whiteboard token="CUoUwGyfthiG16bi2KKl3ziRgkh"></whiteboard>
+![飞书画板](../assets/images/03-gpu/whiteboard-01.jpg)
 
 ![blackwell 架构](../assets/images/03-gpu/image-01.jpg)
 

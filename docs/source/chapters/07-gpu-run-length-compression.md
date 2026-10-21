@@ -15,7 +15,7 @@ local: true
 
 ## 并行扫描问题
 
-<whiteboard token="DXFPwVSgThjeTXbBBF0l5ovcgAh"></whiteboard>
+![飞书画板](../assets/images/07-gpu-run-length-compression/whiteboard-01.jpg)
 
 RLE 需要先判断每个位置是否为新 run 的起点，再把这些起点压缩写入连续的输出位置。每个线程可以独立完成判断，但它只有知道“前面已经出现了多少个起点”，才能确定自己的输出下标。这个从标记到位置的转换，就是 scan。
 

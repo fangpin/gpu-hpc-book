@@ -134,7 +134,7 @@ $$\text{Time}_{L2_bound} = \frac{231.87 \text{ GB}}{2500 \text{ GB/s}} \approx \
 
 ## 矩阵乘法中的分块与数据复用
 
-<whiteboard token="BgpXwuGVwhIquvbwEMblOxH3gNg"></whiteboard>
+![飞书画板](../assets/images/06-cuda-gemm/whiteboard-01.jpg)
 
 - **核心挑战**：矩阵乘法的计算复杂度是 O(N^3)，而数据量是 N^2。如果直接从全局内存（Global Memory）读取数据(数据访问量退化成O(N^3))，程序将受限于内存带宽（Memory Bound），而非算力。
 - **优化思路**：利用 **Shared Memory (L1 SRAM)** 和 **Registers** 进行数据复用，减少对低速全局内存的访问。
@@ -663,7 +663,7 @@ Tensor core 支持使用 TF32，它是专门为保持 FP32 兼容性而设计的
 
 先把“布局”分清。这里同时存在三套不同的映射：矩阵的行主序或列主序、数据在 shared memory 中的排布、矩阵元素在 32 个 lane 的寄存器中的分布。`mma.sync` 直接消费的是第三种，也就是 **register fragment layout**。前两种布局最终都要转换成它要求的 fragment。
 
-<whiteboard token="JT1Tw7eIDhZzFDbYabLlc3FHg5d"></whiteboard>
+![飞书画板](../assets/images/06-cuda-gemm/whiteboard-02.jpg)
 
 #### 一条 MMA 指令由整个 warp 共同完成
 
@@ -708,7 +708,7 @@ thread_in_group = lane_id & 3 // 0..3
 
 这个例子能直接看出两个特点：同一 lane 负责的元素往往跨越相距 8 行或 4 列的位置；A、B 和累加器的映射也不相同。因此，不能用“每个线程负责一个连续小块”来理解 Tensor Core。
 
-<whiteboard token="ELCwwEB4whOc6Ib5jNqlGFH3gYb"></whiteboard>
+![飞书画板](../assets/images/06-cuda-gemm/whiteboard-03.jpg)
 
 #### FP16/BF16 的元素映射和物理寄存器数量不同
 
@@ -844,7 +844,7 @@ FP16/BF16 的部分 WGMMA 变体支持对 descriptor 操作数做转置，但这
 
 #### 一个双缓冲流水线的简化顺序
 
-<whiteboard token="P85iwqBhUhnhj6bVExilDHzKghf"></whiteboard>
+![飞书画板](../assets/images/06-cuda-gemm/whiteboard-04.jpg)
 
 下面是示意流程，省略了 barrier 初始化、descriptor 构造和边界处理。它表达的是依赖关系，不是一段可以直接复制编译的完整 PTX：
 

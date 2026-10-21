@@ -7,7 +7,7 @@ local: true
 ---
 ```
 
-<whiteboard token="Z9YAwnONnhwBwRb9koXlpg1fg5e"></whiteboard>
+![飞书画板](../assets/images/12-tirx-gemm/whiteboard-01.jpg)
 
 既然已经有了 TMA 和双缓冲，为什么还说没有真正 overlap？原因是当前代码仍由一个 warpgroup 顺序推进 load、MMA 和 store。它具备了 overlap 所需的物理结构，但还没有把不同角色分给不同 warpgroup。本章的 warp specialization 会把 producer、MMA consumer、writeback 等角色拆开，让 TMA load 和 Tensor Core compute 在时间上真正重叠。
 

@@ -66,7 +66,7 @@ Cuda 从 Hopper（compute capability 9.0）引入 Tensor Memory Accelerator，�
 
 ## TMA 完成异步数据搬运
 
-<whiteboard token="O9Wswkkgnh9jKdbuFkclxX9agNe"></whiteboard>
+![飞书画板](../assets/images/08-cuda-tma-tensor-memory-accelerator/whiteboard-01.jpg)
 
 TMA 指令返回时，数据还没到。load 的完成点在 shared memory，store 和 reduce 的完成点在 global memory，两边用的同步原语不同。
 

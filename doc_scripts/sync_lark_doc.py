@@ -44,13 +44,18 @@ TITLE_TAG_RE = re.compile(r"^<title>([\s\S]*?)</title>\s*")
 H1_RE = re.compile(r"^#\s+\S")
 H2_RE = re.compile(r"^#{2,6}\s+\S")
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
+FENCE_RUN_RE = re.compile(r"(`{3,}|~{3,})")
 IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)(\s+\"[^\"]*\")?\)")
+WHITEBOARD_RE = re.compile(
+    r"[ \t]*<whiteboard\b([^>]*)>[ \t]*(?:</whiteboard>)?[ \t]*"
+)
 ESCAPE_RE = re.compile(r"\\([*_$\[\]()])")
 FOOTNOTE_DEF_RE = re.compile(r"^\[\^([^\]]+)\]:")
 FOOTNOTE_REF_RE = re.compile(r"\[\^([^\]]+)\]")
 SHEET_TAG_RE = re.compile(r"<sheet\b([^>]*)>\s*(?:</sheet>)?")
 SHEET_ATTR_RE = re.compile(r'([\w-]+)="([^"]*)"')
 SHEET_PLACEHOLDER = "> [飞书内嵌电子表格导出失败，请到原文档查看对应内容]"
+WHITEBOARD_PLACEHOLDER = "> [飞书画板导出失败，请到原文档查看对应内容]"
 
 SHEET_FETCH_RANGE = "A1:Z200"  # generous cap; embedded sheets in docs are small
 FENCE_LANG_RE = re.compile(r"^(\s*)(`{3,}|~{3,})\s*(\S*)(.*)$")
@@ -278,29 +283,145 @@ def lark_file_token_from_url(url: str) -> str | None:
     return None
 
 
-def fetch_lark_media(token: str, dest: Path, basename: str) -> tuple[bytes, str] | None:
+def fetch_lark_media(
+    token: str,
+    dest: Path,
+    basename: str,
+    *,
+    media_type: str = "media",
+) -> tuple[bytes, str] | None:
     """Fetch a protected Feishu media token through lark-cli and return its saved bytes."""
+    created_dest = not dest.exists()
     dest.mkdir(parents=True, exist_ok=True)
+
+    def remove_empty_dest() -> None:
+        if created_dest:
+            try:
+                dest.rmdir()
+            except OSError:
+                pass
+
+    command = ["docs", "+media-preview"]
+    if media_type == "whiteboard":
+        command = ["docs", "+media-download", "--type", "whiteboard"]
     try:
         payload = run_lark_cli([
-            "docs", "+media-preview", "--token", token, "--output", basename,
+            *command, "--token", token, "--output", basename,
             "--overwrite", "--json",
         ], cwd=dest)
     except SystemExit as exc:
         print(f"  warning: failed to fetch Feishu media ({exc}): {token}", file=sys.stderr)
+        remove_empty_dest()
         return None
     data = payload.get("data", {})
     saved_path = Path(data.get("saved_path", ""))
+    if not saved_path.is_absolute():
+        saved_path = dest / saved_path
+    try:
+        saved_path = saved_path.resolve()
+        saved_path.relative_to(dest.resolve())
+    except (OSError, ValueError):
+        print(f"  warning: Feishu media path escaped destination: {token}", file=sys.stderr)
+        remove_empty_dest()
+        return None
+    if saved_path.stem != basename:
+        print(f"  warning: Feishu media path has unexpected name: {token}", file=sys.stderr)
+        remove_empty_dest()
+        return None
     if not saved_path.is_file():
         print(f"  warning: Feishu media download did not create a file: {token}", file=sys.stderr)
+        remove_empty_dest()
         return None
-    image = saved_path.read_bytes()
+    try:
+        image = saved_path.read_bytes()
+    except OSError as exc:
+        print(f"  warning: failed to read Feishu media ({exc}): {token}", file=sys.stderr)
+        remove_empty_dest()
+        return None
     ext = extension_for(image, data.get("content_type"))
+    try:
+        saved_path.unlink()
+    except OSError as exc:
+        print(f"  warning: failed to clean up Feishu media ({exc}): {token}", file=sys.stderr)
+        return None
     if ext is None:
-        saved_path.unlink(missing_ok=True)
         print(f"  warning: Feishu media is not an image: {token}", file=sys.stderr)
+        remove_empty_dest()
         return None
     return image, ext
+
+
+def localize_whiteboards(content: str, slug: str) -> str:
+    """Download Feishu whiteboard thumbnails and replace their embed tags."""
+    index = 0
+
+    def sub(m: re.Match) -> str:
+        nonlocal index
+        index += 1
+        token = dict(SHEET_ATTR_RE.findall(m.group(1))).get("token")
+        if not token:
+            return WHITEBOARD_PLACEHOLDER
+        dest = IMAGES_DIR / slug
+        basename = f"whiteboard-{index:02d}"
+        fetched = fetch_lark_media(
+            token,
+            dest,
+            basename,
+            media_type="whiteboard",
+        )
+        if fetched is None:
+            return WHITEBOARD_PLACEHOLDER
+        data, ext = fetched
+        output = dest / f"{basename}{ext}"
+        output.write_bytes(data)
+        return f"![飞书画板](../assets/images/{slug}/{output.name})"
+
+    output = []
+    fence_marker = ""
+    fence_length = 0
+    in_html_comment = False
+    for line in content.splitlines(keepends=True):
+        body = line.rstrip("\r\n")
+        line_ending = line[len(body):]
+        stripped = body.lstrip(" \t")
+        indent = len(body) - len(stripped)
+        marker_match = FENCE_RUN_RE.match(stripped) if indent <= 3 else None
+        marker = marker_match.group(1) if marker_match else ""
+
+        if fence_marker:
+            marker_tail = stripped[len(marker):] if marker else stripped
+            if (
+                marker
+                and marker[0] == fence_marker
+                and len(marker) >= fence_length
+                and not marker_tail.strip()
+            ):
+                fence_marker = ""
+                fence_length = 0
+            output.append(line)
+            continue
+
+        if in_html_comment:
+            if "-->" in body:
+                in_html_comment = False
+            output.append(line)
+            continue
+
+        comment_start = body.find("<!--")
+        if comment_start != -1:
+            in_html_comment = "-->" not in body[comment_start + 4:]
+            output.append(line)
+            continue
+
+        if marker:
+            fence_marker = marker[0]
+            fence_length = len(marker)
+            output.append(line)
+            continue
+
+        match = WHITEBOARD_RE.fullmatch(body)
+        output.append(line if match is None else sub(match) + line_ending)
+    return "".join(output)
 
 
 def localize_images(content: str, slug: str) -> str:
@@ -416,7 +537,7 @@ def main() -> None:
         heading = content.split("\n", 1)[0]
         slug = slugify(heading.lstrip("# ").strip(), index, seen)
         slugs.append(slug)
-        content = add_page_toc(localize_images(content, slug))
+        content = add_page_toc(localize_whiteboards(localize_images(content, slug), slug))
         (CHAPTERS_DIR / f"{slug}.md").write_text(content + "\n", encoding="utf-8")
         print(f"  chapter: {slug}")
 

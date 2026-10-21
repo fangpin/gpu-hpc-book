@@ -434,7 +434,7 @@ pid_n = (pid % num_pid_in_group) // group_size_m
 
 ### L2 cache reuse：为什么 grouped ordering 能提速
 
-<whiteboard token="CL5XwhG3Mhz2yPb9lYTlZNKIgRg"></whiteboard>
+![飞书画板](../assets/images/14-triton/whiteboard-01.jpg)
 
 这一点可以从 9x9 tile 的例子看得很清楚：下图上半部分是 row-major，下半部分是 grouped ordering。为了计算前 9 个输出 tile，row-major 需要加载 9 个 A block 和 81 个 B block，总共 90 个 operand block；grouped ordering 让 program 先围绕一组 M tile 扫过多个 N tile，只需要加载 27 个 A block 和 27 个 B block，总共 54 个 operand block。
 

@@ -211,7 +211,7 @@ print("PASS")
 
 ## 理解 TIRx，关键是看三个决定
 
-<whiteboard token="TTYZwr8rahdMeNbj4t7lxnC2gKf"></whiteboard>
+![飞书画板](../assets/images/10-tirx/whiteboard-01.jpg)
 
 TIRx 的核心抽象，其实可以压缩成三个问题：谁执行、数据怎么摆、走哪条硬件路径。几乎所有 tile operation 都可以沿着这三个维度来理解。
 

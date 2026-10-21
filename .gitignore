@@ -3,6 +3,8 @@ dist/
 .DS_Store
 npm-debug.log*
 .venv/
+__pycache__/
+*.py[cod]
 docs/_build/
 dist/platform-posts/
 docs/project.json
