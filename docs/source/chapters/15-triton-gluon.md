@@ -136,7 +136,7 @@ Scope 已经通过 grid 把大数组切给多个 CTA。性能缺口集中在 Lay
 
 ## GLUON Tensor Layouts
 
-![飞书画板](../assets/images/15-triton-gluon/whiteboard-01.jpg)
+![飞书画板](../assets/images/15-triton-gluon/whiteboard-01.svg)
 
 上一节的 `memcpy` 已经用 grid 把输入切给多个 CTA，却仍让每个 CTA 在循环里逐元素复制。缺少的环节是 layout：它规定一个 tile 里的逻辑元素分别由哪个 warp、哪个 lane 和该 lane 的哪个寄存器持有。Gluon 要求 tensor 携带 layout，正是为了让这种映射成为程序语义的一部分。
 

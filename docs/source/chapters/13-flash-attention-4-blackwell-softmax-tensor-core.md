@@ -59,7 +59,7 @@ delta = (row_max - candidate_max) * scale_log2
 
 ## 一个 K/V Block 的数据流
 
-![飞书画板](../assets/images/13-flash-attention-4-blackwell-softmax-tensor-core/whiteboard-01.jpg)
+![飞书画板](../assets/images/13-flash-attention-4-blackwell-softmax-tensor-core/whiteboard-01.svg)
 
 把算法放到 Blackwell 的硬件路径上，FA4 的一个 K/V block 可以拆成下面几条 tile 数据流：
 

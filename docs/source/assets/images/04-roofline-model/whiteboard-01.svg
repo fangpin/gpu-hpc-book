@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1320"
+     height="760"
+     viewBox="-20 -20 1320 760">
+  <defs>
+<marker id="connector-arrow-0" markerUnits="userSpaceOnUse" markerWidth="40" markerHeight="40" refX="11.258330249197702" refY="0" orient="auto" overflow="visible"><path fill="#2563eb" stroke="none" d="M 11.258330249197702 0 L 0 -6.5 L 0 6.5 Z"/></marker>
+  </defs>
+<g id="o1:1" transform="translate(0, 0)"><rect x="0" y="0" width="1280" height="720" fill="#f8fafc" stroke="none" stroke-width="0" rx="0" ry="0"/></g>
+<g id="a1:1" transform="translate(48, 37.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="bold" fill="#52627a" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="14.118"><tspan x="0" text-anchor="start">ROOFLINE MODEL</tspan></tspan></text></g>
+<g id="a1:2" transform="translate(48, 53.058)"><text font-size="28" font-family="Noto Sans SC" font-weight="bold" fill="#17233c" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="32.942"><tspan x="0" text-anchor="start">性能上限 = min（峰值算力，带宽 × 算术强度）</tspan></tspan></text></g>
+<g id="c1:1" transform="translate(150, 590)"><path fill="none" stroke="#17233c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 1010 0"/></g>
+<g id="c1:2" transform="translate(150, 150)"><path fill="none" stroke="#17233c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 0 440 L 0 0"/></g>
+<g id="c1:3" transform="translate(150, 260)"><path fill="none" stroke="#cbd5e1" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 1010 0"/></g>
+<g id="c1:4" transform="translate(150, 370)"><path fill="none" stroke="#cbd5e1" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 1010 0"/></g>
+<g id="c1:5" transform="translate(150, 480)"><path fill="none" stroke="#cbd5e1" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 1010 0"/></g>
+<g id="c1:6" transform="translate(150, 190)"><path fill="none" stroke="#b45309" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" d="M 0 400 L 540 0 L 1010 0"/></g>
+<g id="o1:2" transform="translate(683, 183)"><ellipse fill="#b45309" stroke="none" stroke-width="0" cx="7" cy="7" rx="7" ry="7"/></g>
+<g id="a1:3" transform="translate(78, 344.7055)"><text font-size="13" font-family="Noto Sans SC" font-weight="bold" fill="#52627a" text-anchor="middle" dominant-baseline="alphabetic" x="34"><tspan x="34" y="15.295"><tspan x="8" text-anchor="start">可达性能</tspan></tspan></text></g>
+<g id="a1:4" transform="translate(540.5, 624.7055)"><text font-size="13" font-family="Noto Sans SC" font-weight="bold" fill="#52627a" text-anchor="middle" dominant-baseline="alphabetic" x="109.5"><tspan x="109.5" y="15.295"><tspan x="22.19" text-anchor="start">算术强度 OI（FLOPs / Byte）</tspan></tspan></text></g>
+<g id="a1:5" transform="translate(282, 368.823)"><text font-size="18" font-family="Noto Sans SC" font-weight="bold" fill="#2563eb" text-anchor="middle" dominant-baseline="alphabetic" x="76"><tspan x="76" y="21.177"><tspan x="7.51" text-anchor="start">Memory-bound</tspan></tspan></text></g>
+<g id="a1:6" transform="translate(346.5, 305.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="bold" fill="#52627a" text-anchor="middle" dominant-baseline="alphabetic" x="55.5"><tspan x="55.5" y="14.118"><tspan x="13.24" text-anchor="start">斜率 = 内存带宽</tspan></tspan></text></g>
+<g id="a1:7" transform="translate(874.5, 159.882)"><text font-size="12" font-family="Noto Sans SC" font-weight="bold" fill="#b45309" text-anchor="middle" dominant-baseline="alphabetic" x="55.5"><tspan x="55.5" y="14.118"><tspan x="13.24" text-anchor="start">平台 = 峰值算力</tspan></tspan></text></g>
+<g id="o1:3" transform="translate(250, 468)"><rect x="0" y="0" width="176" height="72" fill="#dbeafe" stroke="#2563eb" stroke-width="1.3" rx="8" ry="8"/></g>
+<g id="a1:8" transform="translate(278, 479.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="bold" fill="#17233c" text-anchor="middle" dominant-baseline="alphabetic" x="60"><tspan x="60" y="16.471"><tspan x="14.12" text-anchor="start">低 OI 工作负载</tspan></tspan></text></g>
+<g id="a1:9" transform="translate(288.5, 507.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#52627a" text-anchor="middle" dominant-baseline="alphabetic" x="49.5"><tspan x="49.5" y="12.942"><tspan x="0" text-anchor="start">搬运数据多，计算少</tspan></tspan></text></g>
+<g id="o1:4" transform="translate(770, 226)"><rect x="0" y="0" width="176" height="72" fill="#fff7ed" stroke="#b45309" stroke-width="2" rx="8" ry="8"/></g>
+<g id="a1:10" transform="translate(798, 237.529)"><text font-size="14" font-family="Noto Sans SC" font-weight="bold" fill="#17233c" text-anchor="middle" dominant-baseline="alphabetic" x="60"><tspan x="60" y="16.471"><tspan x="14.12" text-anchor="start">高 OI 工作负载</tspan></tspan></text></g>
+<g id="a1:11" transform="translate(814, 265.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#b45309" text-anchor="middle" dominant-baseline="alphabetic" x="44"><tspan x="44" y="12.942"><tspan x="0" text-anchor="start">算力成为主要约束</tspan></tspan></text></g>
+<g id="c1:7" transform="translate(426, 326)"><path fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="butt" stroke-linejoin="round" marker-end="url(#connector-arrow-0)" stroke-dasharray="0 0 504.7106693632186 11.258330249197702" d="M 0 178 C 0 178 224 178 224 178 C 229.3333335 178 232 175.3333335 232 170 C 232 170 232 8 232 8 C 232 2.6666665 234.6666665 0 240 0 C 240 0 344 0 344 0"/></g>
+<g id="o1:5" transform="translate(486, 448)"><rect x="0" y="0" width="166" height="32" fill="#f8fafc" stroke="#2563eb" stroke-width="1" rx="6" ry="6"/></g>
+<g id="a1:12" transform="translate(485.5, 456.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="bold" fill="#2563eb" text-anchor="middle" dominant-baseline="alphabetic" x="83.5"><tspan x="83.5" y="12.942"><tspan x="18.7" text-anchor="start">分块与数据复用 → OI 右移</tspan></tspan></text></g>
+<g id="a1:13" transform="translate(659, 204.235)"><text font-size="10" font-family="Noto Sans SC" font-weight="bold" fill="#b45309" text-anchor="middle" dominant-baseline="alphabetic" x="31"><tspan x="31" y="11.765"><tspan x="3.97" text-anchor="start">ridge point</tspan></tspan></text></g>
+<g id="c1:8" transform="translate(48, 660)"><path fill="none" stroke="#cbd5e1" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" d="M 0 0 L 1184 0"/></g>
+<g id="a1:14" transform="translate(64, 679.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#52627a" text-anchor="start" dominant-baseline="alphabetic" x="0"><tspan x="0" y="12.942"><tspan x="0" text-anchor="start">优化方向先看瓶颈所在区域：左侧优先减少流量，右侧优先提高计算效率。</tspan></tspan></text></g>
+<g id="a1:15" transform="translate(1056, 679.0585)"><text font-size="11" font-family="Noto Sans SC" font-weight="normal" fill="#6b7b92" text-anchor="end" dominant-baseline="alphabetic" x="160"><tspan x="160" y="12.942"><tspan x="5.79" text-anchor="start">P = min(Peak FLOPs, BW × OI)</tspan></tspan></text></g>
+</svg>

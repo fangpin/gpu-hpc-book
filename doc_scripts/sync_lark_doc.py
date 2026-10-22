@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import errno
 import io
 import json
 import os
@@ -23,6 +24,7 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote, urlparse
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIR = ROOT / "docs" / "source"
@@ -302,12 +304,14 @@ def fetch_lark_media(
                 pass
 
     command = ["docs", "+media-preview"]
+    identity = []
     if media_type == "whiteboard":
         command = ["docs", "+media-download", "--type", "whiteboard"]
+        identity = ["--as", "user"]
     try:
         payload = run_lark_cli([
             *command, "--token", token, "--output", basename,
-            "--overwrite", "--json",
+            "--overwrite", *identity, "--json",
         ], cwd=dest)
     except SystemExit as exc:
         print(f"  warning: failed to fetch Feishu media ({exc}): {token}", file=sys.stderr)
@@ -351,8 +355,129 @@ def fetch_lark_media(
     return image, ext
 
 
+def is_safe_whiteboard_svg(data: bytes) -> bool:
+    """Accept SVG snapshots without executable or remotely loaded content."""
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return False
+    if "\x00" in text or "<?" in text or re.search(r"<!DOCTYPE\b", text, re.IGNORECASE):
+        return False
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError:
+        return False
+
+    def local_name(name: str) -> str:
+        return name.rsplit("}", 1)[-1].lower()
+
+    def has_external_url_function(value: str) -> bool:
+        for match in re.finditer(r"url\(([^)]*)\)", value, re.IGNORECASE):
+            reference = match.group(1).strip().strip("'\"").strip()
+            if not reference.startswith("#"):
+                return True
+        return False
+
+    if local_name(root.tag) != "svg":
+        return False
+    remote_url = re.compile(r"(?:https?:)?//", re.IGNORECASE)
+    dynamic_tags = {"animate", "animatemotion", "animatetransform", "discard", "set"}
+    xml_base_attr = "{http://www.w3.org/XML/1998/namespace}base"
+    for element in root.iter():
+        tag = local_name(element.tag)
+        if tag in {"script", "foreignobject", "style"} | dynamic_tags:
+            return False
+        for name, value in element.attrib.items():
+            if name == xml_base_attr:
+                return False
+            attr = local_name(name)
+            if (
+                attr.startswith("on")
+                or attr == "style"
+                or "\\" in value
+                or remote_url.search(value)
+                or has_external_url_function(value)
+                or (attr in {"href", "src"} and not value.lstrip().startswith("#"))
+            ):
+                return False
+    return True
+
+
+def is_transient_lark_error(exc: BaseException) -> bool:
+    """Return whether a failed CLI/export operation is worth one retry."""
+    transient_errnos = {
+        errno.ECONNABORTED,
+        errno.ECONNREFUSED,
+        errno.ECONNRESET,
+        errno.EHOSTUNREACH,
+        errno.ENETDOWN,
+        errno.ENETUNREACH,
+        errno.EPIPE,
+        errno.ETIMEDOUT,
+    }
+    if isinstance(exc, OSError) and exc.errno in transient_errnos:
+        return True
+    message = str(exc).lower()
+    return any(marker in message for marker in (
+        "timeout",
+        "timed out",
+        "tls handshake",
+        "connection aborted",
+        "connection refused",
+        "connection reset",
+        "context deadline exceeded",
+        "network is unreachable",
+        "no route to host",
+        "broken pipe",
+        "temporary failure",
+        "unexpected eof",
+    ))
+
+
+def fetch_lark_whiteboard_svg(token: str, dest: Path, basename: str) -> bytes | None:
+    """Export a Feishu whiteboard as SVG and return the saved bytes."""
+    created_dest = not dest.exists()
+    dest.mkdir(parents=True, exist_ok=True)
+    output = dest / f"{basename}.svg"
+    error: OSError | SystemExit | ValueError | None = None
+    for attempt in range(2):
+        try:
+            run_lark_cli([
+                "whiteboard", "+export",
+                "--whiteboard-token", token,
+                "--output-type", "svg",
+                "--output", output.name,
+                "--overwrite",
+                "--as", "user",
+                "--json",
+            ], cwd=dest)
+            data = output.read_bytes()
+            if not is_safe_whiteboard_svg(data):
+                raise ValueError("unsafe or invalid SVG")
+            output.unlink()
+            return data
+        except (OSError, SystemExit, ValueError) as exc:
+            error = exc
+            if attempt == 0 and is_transient_lark_error(exc):
+                print(f"  warning: transient whiteboard SVG export failure; retrying: {token}",
+                      file=sys.stderr)
+                output.unlink(missing_ok=True)
+                continue
+            break
+
+    print(f"  warning: failed to export Feishu whiteboard SVG ({error}): {token}",
+          file=sys.stderr)
+    output.unlink(missing_ok=True)
+    if created_dest:
+        try:
+            dest.rmdir()
+        except OSError:
+            pass
+    return None
+
+
 def localize_whiteboards(content: str, slug: str) -> str:
-    """Download Feishu whiteboard thumbnails and replace their embed tags."""
+    """Export Feishu whiteboards as SVG and replace their embed tags."""
     index = 0
 
     def sub(m: re.Match) -> str:
@@ -363,17 +488,23 @@ def localize_whiteboards(content: str, slug: str) -> str:
             return WHITEBOARD_PLACEHOLDER
         dest = IMAGES_DIR / slug
         basename = f"whiteboard-{index:02d}"
-        fetched = fetch_lark_media(
-            token,
-            dest,
-            basename,
-            media_type="whiteboard",
-        )
-        if fetched is None:
-            return WHITEBOARD_PLACEHOLDER
-        data, ext = fetched
+        data = fetch_lark_whiteboard_svg(token, dest, basename)
+        if data is None:
+            fetched = fetch_lark_media(
+                token,
+                dest,
+                basename,
+                media_type="whiteboard",
+            )
+            if fetched is None:
+                return WHITEBOARD_PLACEHOLDER
+            data, ext = fetched
+        else:
+            ext = ".svg"
         output = dest / f"{basename}{ext}"
         output.write_bytes(data)
+        for stale_ext in set(CONTENT_TYPE_EXT.values()) - {ext}:
+            (dest / f"{basename}{stale_ext}").unlink(missing_ok=True)
         return f"![飞书画板](../assets/images/{slug}/{output.name})"
 
     output = []

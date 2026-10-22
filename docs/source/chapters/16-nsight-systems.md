@@ -53,7 +53,7 @@ ncu --version
 
 ## 用 Nsight Systems 建立端到端时间线
 
-![飞书画板](../assets/images/16-nsight-systems/whiteboard-01.jpg)
+![飞书画板](../assets/images/16-nsight-systems/whiteboard-01.svg)
 
 ### 从一条可复现命令开始
 

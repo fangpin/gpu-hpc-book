@@ -41,7 +41,7 @@ $$P = \min(\text{Peak GFLOPS}, \text{Operational Intensity} \times \text{Peak Ba
 
 ## 图像解读：斜率与平台
 
-![飞书画板](../assets/images/04-roofline-model/whiteboard-01.jpg)
+![飞书画板](../assets/images/04-roofline-model/whiteboard-01.svg)
 
 x轴为OI，y轴为性能 P。
 

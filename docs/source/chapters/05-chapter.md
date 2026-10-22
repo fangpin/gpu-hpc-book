@@ -196,7 +196,7 @@ l1_mem_latency latency =        30 cycles
 
 ## Bank conflict
 
-![飞书画板](../assets/images/05-chapter/whiteboard-01.jpg)
+![飞书画板](../assets/images/05-chapter/whiteboard-01.svg)
 
 在 GPU 的 **Shared Memory（共享内存）** 优化中，**Bank Conflict（存储体冲突）** 是最常见的性能杀手之一。
 

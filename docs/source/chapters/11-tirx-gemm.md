@@ -7,7 +7,7 @@ local: true
 ---
 ```
 
-![飞书画板](../assets/images/11-tirx-gemm/whiteboard-01.jpg)
+![飞书画板](../assets/images/11-tirx-gemm/whiteboard-01.svg)
 
 GEMM 是现代 MLSys 里最值得认真对待的基础 kernel。线性层、attention projection，以及不少 convolution lowering 之后的算子，最终都会把 GPU 时间花在矩阵乘上。也正因为它重要，GEMM 的优化不能一开始就把 TMA、pipeline、warp specialization、cluster 和 Tensor Core 调度全部混在一起。更稳妥的路线，是先建立一个可信的正确版本，再让每一轮优化只改变一个明确的契约。
 

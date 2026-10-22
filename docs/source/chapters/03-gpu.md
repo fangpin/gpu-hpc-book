@@ -7,7 +7,7 @@ local: true
 ---
 ```
 
-![飞书画板](../assets/images/03-gpu/whiteboard-01.jpg)
+![飞书画板](../assets/images/03-gpu/whiteboard-01.svg)
 
 ![blackwell 架构](../assets/images/03-gpu/image-01.jpg)
 
